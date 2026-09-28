@@ -1,0 +1,46 @@
+{
+  "_README": "FICTIONAL teaching terminology for HLTH 667M. Codes use the invented 'NORTHSTAR-CT' system. These are NOT SNOMED CT, LOINC, ICD-10 or any real terminology code. Do not reuse outside this tutorial.",
+  "code_system": "NORTHSTAR-CT",
+  "code_system_version": "fictional-2026.1",
+  "real_world_note": "A production system would use a licensed terminology such as SNOMED CT, LOINC or ICD-10. That adds licensing, versioning, release-cycle and mapping-maintenance obligations this fixture does not model.",
+  "concepts": [
+    {
+      "code": "NC-00412",
+      "preferred_term": "laboratory result",
+      "synonyms": ["lab result", "blood work", "bloodwork", "blood test", "test result", "labs", "pathology result"],
+      "narrower": ["NC-00413"],
+      "corpus_terms": ["laboratory", "result", "results"]
+    },
+    {
+      "code": "NC-00413",
+      "preferred_term": "urgent laboratory result",
+      "synonyms": ["critical result", "abnormal result", "bad result", "panic value", "urgent result"],
+      "broader": ["NC-00412"],
+      "corpus_terms": ["urgent", "result", "results"]
+    },
+    {
+      "code": "NC-00520",
+      "preferred_term": "patient portal",
+      "synonyms": ["portal", "online account", "patient website", "my chart", "health record app"],
+      "corpus_terms": ["portal"]
+    },
+    {
+      "code": "NC-00611",
+      "preferred_term": "proxy access",
+      "synonyms": ["caregiver access", "parent access", "guardian access", "someone else viewing my record", "delegate access"],
+      "corpus_terms": ["proxy", "consent", "access"]
+    },
+    {
+      "code": "NC-00705",
+      "preferred_term": "appointment",
+      "synonyms": ["visit", "booking", "consult", "clinic appointment", "followup"],
+      "corpus_terms": ["appointment", "appointments", "booking"]
+    },
+    {
+      "code": "NC-00810",
+      "preferred_term": "audit log",
+      "synonyms": ["access log", "access history", "who looked at my record", "record view history"],
+      "corpus_terms": ["audit", "log", "logging"]
+    }
+  ]
+}

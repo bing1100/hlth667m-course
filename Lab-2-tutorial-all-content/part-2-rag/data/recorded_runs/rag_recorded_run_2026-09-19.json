@@ -1,0 +1,144 @@
+{
+  "_README": "Verbatim transcript of one real, paid OpenAI run of the Part 6 RAG comparison. Replay mode shows these recorded responses so the notebook is fully usable without an API key. Replayed output is always labelled RECORDED and is never presented as a fresh model response.",
+  "recorded_on": "2026-09-19",
+  "generation_model": "gpt-4.1-mini",
+  "embedding_model": "text-embedding-3-small",
+  "collection_name": "hlth667m_rag_demo_v1",
+  "chunk_algorithm": "h2-v1",
+  "top_k": 4,
+  "provenance_note": "Request IDs identify the original API calls. No credential value is stored. These responses are one sample from a non-deterministic service; a fresh live run will word things differently.",
+  "records": {
+    "Q1_SINGLE": {
+      "question_id": "Q1_SINGLE",
+      "question": "How long does a portal registration code remain valid?",
+      "retrieved_ids": [
+        "access_guide::000",
+        "privacy_policy::000",
+        "privacy_policy::001",
+        "results_policy::000"
+      ],
+      "retrieval_similarities": [
+        0.667799,
+        0.440518,
+        0.377942,
+        0.371971
+      ],
+      "direct_response": "The validity period of a portal registration code can vary depending on the specific system or organization issuing it. Typically, registration codes might remain valid for anywhere from a few hours to several days. Without details about the particular portal, it's uncertain how long the code will remain valid.",
+      "rag_response": "A portal registration code remains valid for 48 hours. [access_guide::000]",
+      "direct_usage": {
+        "input_tokens": 114,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 55,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 169
+      },
+      "rag_usage": {
+        "input_tokens": 293,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 19,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 312
+      },
+      "direct_request_id": "req_9ee0c9c915ef4e6e809be4db047f0adb",
+      "rag_request_id": "req_a5600440de3a467c871edf0725bc7c5a"
+    },
+    "Q2_MULTI": {
+      "question_id": "Q2_MULTI",
+      "question": "How are urgent results communicated, and who handles questions about interpreting results?",
+      "retrieved_ids": [
+        "results_policy::002",
+        "results_policy::001",
+        "results_policy::000",
+        "access_guide::002"
+      ],
+      "retrieval_similarities": [
+        0.697229,
+        0.605162,
+        0.455892,
+        0.415312
+      ],
+      "direct_response": "Urgent results are typically communicated promptly, often by direct phone call or secure electronic alert, to the relevant healthcare provider. Questions about interpreting these results are usually handled by the ordering physician or a specialist involved in the patient's care.",
+      "rag_response": "Urgent results are communicated by a designated clinician who telephones the patient and documents the contact attempt [results_policy::001]. Questions about interpreting results are routed to the ordering team [results_policy::002].",
+      "direct_usage": {
+        "input_tokens": 118,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 46,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 164
+      },
+      "rag_usage": {
+        "input_tokens": 285,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 42,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 327
+      },
+      "direct_request_id": "req_3648cec5fe8a4cb6a5c5c99863e3f76c",
+      "rag_request_id": "req_cdea77973ad048c591e50d07ca978fdb"
+    },
+    "Q3_UNANSWERABLE": {
+      "question_id": "Q3_UNANSWERABLE",
+      "question": "What parking fee does Northstar Clinic charge?",
+      "retrieved_ids": [
+        "access_guide::000",
+        "access_guide::002",
+        "access_guide::001",
+        "results_policy::001"
+      ],
+      "retrieval_similarities": [
+        0.340689,
+        0.31837,
+        0.296118,
+        0.210104
+      ],
+      "direct_response": "I don't have information about the parking fee charged by Northstar Clinic. You may want to contact the clinic directly for accurate details.",
+      "rag_response": "The supplied context does not contain that information.",
+      "direct_usage": {
+        "input_tokens": 113,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 27,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 140
+      },
+      "rag_usage": {
+        "input_tokens": 297,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output_tokens": 10,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 307
+      },
+      "direct_request_id": "req_22ada23237f443d4bcea2350f8c77fda",
+      "rag_request_id": "req_525bdfc4833c496096d39fb6309650e7"
+    }
+  }
+}

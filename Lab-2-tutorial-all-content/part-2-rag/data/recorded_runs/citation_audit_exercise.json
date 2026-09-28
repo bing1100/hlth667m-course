@@ -1,0 +1,56 @@
+{
+  "_README": "INSTRUCTOR-AUTHORED teaching fixtures. These answers were written by hand to contain specific, gradeable faults. They are NOT OpenAI outputs and must never be displayed as model responses. Students audit each one against the retrieved evidence.",
+  "purpose": "Teach that a fluent, cited answer can still be wrong. Automated citation checking catches only some faults; the rest need a human reading the source text.",
+  "cases": [
+    {
+      "case_id": "A_SUPPORTED",
+      "question": "How long does a portal registration code remain valid?",
+      "retrieved_ids": ["access_guide::000", "privacy_policy::000"],
+      "answer": "A portal registration code remains valid for 48 hours. [access_guide::000]",
+      "fault": "none",
+      "automated_check_catches_it": false,
+      "verdict": "Supported. The cited chunk states the 48-hour expiry. This is the control case.",
+      "teaching_point": "A correct answer and an incorrect answer can look equally confident. Confidence is not evidence."
+    },
+    {
+      "case_id": "B_INVENTED_FACT_REAL_CITATION",
+      "question": "How long does a portal registration code remain valid?",
+      "retrieved_ids": ["access_guide::000", "privacy_policy::000"],
+      "answer": "A portal registration code remains valid for 48 hours, and a replacement code costs a $15 administrative fee. [access_guide::000]",
+      "fault": "unsupported_claim_under_valid_citation",
+      "automated_check_catches_it": false,
+      "verdict": "Partly unsupported. The 48-hour claim is supported. The $15 fee appears nowhere in the retrieved text. The citation label is valid, so the automated check passes.",
+      "teaching_point": "This is the most dangerous failure in the whole tutorial. Every automated gate passes and the answer is still wrong. Only reading the cited chunk catches it."
+    },
+    {
+      "case_id": "C_MISATTRIBUTED_CITATION",
+      "question": "How long does a portal registration code remain valid?",
+      "retrieved_ids": ["access_guide::000", "privacy_policy::000"],
+      "answer": "A portal registration code remains valid for 48 hours. [privacy_policy::000]",
+      "fault": "citation_points_to_wrong_chunk",
+      "automated_check_catches_it": false,
+      "verdict": "Claim is true of the corpus but the citation is wrong. privacy_policy::000 is about audit-log retention, not registration codes.",
+      "teaching_point": "A citation is a pointer, not a proof. Check that the cited chunk actually contains the claim."
+    },
+    {
+      "case_id": "D_FABRICATED_CHUNK_ID",
+      "question": "How long does a portal registration code remain valid?",
+      "retrieved_ids": ["access_guide::000", "privacy_policy::000"],
+      "answer": "A portal registration code remains valid for 72 hours. [access_guide::007]",
+      "fault": "citation_id_was_never_retrieved",
+      "automated_check_catches_it": true,
+      "verdict": "Both wrong. The duration contradicts the corpus and access_guide::007 does not exist in the retrieved set.",
+      "teaching_point": "This is the one fault the automated citation check reliably catches, because the ID is not in the retrieved set."
+    },
+    {
+      "case_id": "E_CLINICAL_OVERREACH",
+      "question": "Can a parent see a teenager's laboratory results through the portal?",
+      "retrieved_ids": ["privacy_policy::001", "results_policy::000"],
+      "answer": "Yes. Proxy access requires documented consent from the account holder [privacy_policy::001]. For patients aged 14 and older you should withhold mental-health and sexual-health results from the proxy view.",
+      "fault": "plausible_policy_advice_with_no_evidence",
+      "automated_check_catches_it": false,
+      "verdict": "The consent sentence is supported. Everything about age 14 and withheld result categories is invented. The corpus says nothing about minors, age thresholds, or result sensitivity.",
+      "teaching_point": "Retrieval was relevant but incomplete. The safe response is to answer only the supported part and state that the rest is not in the supplied context."
+    }
+  ]
+}

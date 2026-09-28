@@ -1,0 +1,13 @@
+.env
+*.key
+__pycache__/
+.pytest_cache/
+.venv/
+artifacts/word2vec/*
+!artifacts/word2vec/.gitkeep
+artifacts/rag/chroma/
+artifacts/rag/*.jsonl
+artifacts/rag/*.npz
+artifacts/rag/index_metadata.json
+!artifacts/rag/.gitkeep
+.ipynb_checkpoints/

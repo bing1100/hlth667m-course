@@ -1,0 +1,212 @@
+{
+  "_README": "FICTIONAL teaching knowledge graph for HLTH 667M. Every edge carries the corpus chunk it was derived from, so a graph claim can be traced back to source text. Not a real clinic model.",
+  "graph_version": "fictional-2026.1",
+  "nodes": [
+    {
+      "id": "NC-00412",
+      "label": "laboratory result",
+      "type": "concept"
+    },
+    {
+      "id": "NC-00413",
+      "label": "urgent laboratory result",
+      "type": "concept"
+    },
+    {
+      "id": "NC-00520",
+      "label": "patient portal",
+      "type": "concept"
+    },
+    {
+      "id": "NC-00611",
+      "label": "proxy access",
+      "type": "concept"
+    },
+    {
+      "id": "NC-00705",
+      "label": "appointment",
+      "type": "concept"
+    },
+    {
+      "id": "NC-00810",
+      "label": "audit log",
+      "type": "concept"
+    },
+    {
+      "id": "designated_clinician",
+      "label": "designated clinician",
+      "type": "role"
+    },
+    {
+      "id": "ordering_team",
+      "label": "ordering team",
+      "type": "role"
+    },
+    {
+      "id": "scheduling_desk",
+      "label": "scheduling desk",
+      "type": "role"
+    },
+    {
+      "id": "privacy_office",
+      "label": "privacy office",
+      "type": "role"
+    },
+    {
+      "id": "account_holder",
+      "label": "account holder",
+      "type": "role"
+    },
+    {
+      "id": "result_interpretation",
+      "label": "question about interpreting a result",
+      "type": "task"
+    },
+    {
+      "id": "documented_consent",
+      "label": "documented consent",
+      "type": "artifact"
+    },
+    {
+      "id": "contact_attempt_record",
+      "label": "documented contact attempt",
+      "type": "artifact"
+    },
+    {
+      "id": "three_business_days",
+      "label": "three business days",
+      "type": "value"
+    },
+    {
+      "id": "twelve_months",
+      "label": "twelve months",
+      "type": "value"
+    },
+    {
+      "id": "seven_years",
+      "label": "seven years",
+      "type": "value"
+    },
+    {
+      "id": "forty_eight_hours",
+      "label": "48 hours",
+      "type": "value"
+    }
+  ],
+  "edges": [
+    {
+      "subject": "NC-00413",
+      "predicate": "communicated_by",
+      "object": "designated_clinician",
+      "evidence": "results_policy::001"
+    },
+    {
+      "subject": "NC-00413",
+      "predicate": "must_not_be_released_only_through",
+      "object": "NC-00520",
+      "evidence": "results_policy::001"
+    },
+    {
+      "subject": "designated_clinician",
+      "predicate": "produces",
+      "object": "contact_attempt_record",
+      "evidence": "results_policy::001"
+    },
+    {
+      "subject": "NC-00412",
+      "predicate": "posted_to",
+      "object": "NC-00520",
+      "evidence": "results_policy::000"
+    },
+    {
+      "subject": "NC-00412",
+      "predicate": "service_target",
+      "object": "three_business_days",
+      "evidence": "results_policy::000"
+    },
+    {
+      "subject": "NC-00412",
+      "predicate": "has_subtype",
+      "object": "NC-00413",
+      "evidence": "results_policy::001"
+    },
+    {
+      "subject": "NC-00412",
+      "predicate": "interpretation_question_is",
+      "object": "result_interpretation",
+      "evidence": "results_policy::002"
+    },
+    {
+      "subject": "result_interpretation",
+      "predicate": "routed_to",
+      "object": "ordering_team",
+      "evidence": "results_policy::002"
+    },
+    {
+      "subject": "scheduling_desk",
+      "predicate": "may_confirm_posting_of",
+      "object": "NC-00412",
+      "evidence": "results_policy::002"
+    },
+    {
+      "subject": "scheduling_desk",
+      "predicate": "must_not_perform",
+      "object": "result_interpretation",
+      "evidence": "results_policy::002"
+    },
+    {
+      "subject": "NC-00611",
+      "predicate": "requires",
+      "object": "documented_consent",
+      "evidence": "privacy_policy::001"
+    },
+    {
+      "subject": "NC-00611",
+      "predicate": "reviewed_every",
+      "object": "twelve_months",
+      "evidence": "privacy_policy::001"
+    },
+    {
+      "subject": "documented_consent",
+      "predicate": "granted_by",
+      "object": "account_holder",
+      "evidence": "privacy_policy::001"
+    },
+    {
+      "subject": "NC-00810",
+      "predicate": "records_views_of",
+      "object": "NC-00520",
+      "evidence": "privacy_policy::000"
+    },
+    {
+      "subject": "NC-00810",
+      "predicate": "retained_for",
+      "object": "seven_years",
+      "evidence": "privacy_policy::000"
+    },
+    {
+      "subject": "privacy_office",
+      "predicate": "reviews_suspected_inappropriate_access_to",
+      "object": "NC-00520",
+      "evidence": "privacy_policy::002"
+    },
+    {
+      "subject": "NC-00520",
+      "predicate": "registration_code_expires_after",
+      "object": "forty_eight_hours",
+      "evidence": "access_guide::000"
+    },
+    {
+      "subject": "NC-00705",
+      "predicate": "changed_through",
+      "object": "NC-00520",
+      "evidence": "access_guide::001"
+    },
+    {
+      "subject": "NC-00705",
+      "predicate": "accommodation_recorded_by",
+      "object": "scheduling_desk",
+      "evidence": "access_guide::002"
+    }
+  ]
+}

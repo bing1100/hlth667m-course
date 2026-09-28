@@ -1,0 +1,531 @@
+% =====================================================================
+%  TUTORIAL 1 -- MACHINE-LEARNING PIPELINES
+% =====================================================================
+\tutorialslide{Tutorial 1}{Machine-learning pipelines}{Audit, split, build, compare, evaluate once --- and state the limits of the number.}
+
+\begin{frame}{Two kinds of prediction}
+  \begin{columns}[c,onlytextwidth]
+    \column{.46\textwidth}\centering
+      \begin{tikzpicture}
+        \node[stage=accent,minimum width=24mm] (a) {benign};
+        \node[stage=warm,minimum width=24mm,right=4mm of a] (b) {malignant};
+        \node[note,text=ink,font=\small\bfseries] at ($(a.north)!.5!(b.north)+(0,7mm)$) {Classification};
+        \node[note] at ($(a.south)!.5!(b.south)+(0,-6mm)$) {The target is a \textbf{category}};
+      \end{tikzpicture}
+    \column{.46\textwidth}\centering
+      \begin{tikzpicture}
+        \draw[line width=.8pt,color=muted,{Stealth[length=2mm]}-{Stealth[length=2mm]}] (0,0) -- (5.6,0);
+        \foreach \x/\l in {.6/25,2.0/100,3.4/200,4.8/300} {\draw[color=muted] (\x,.08)--(\x,-.08) node[below,font=\footnotesize,text=muted]{\l};}
+        \fill[good] (2.75,0) circle (2.2pt) node[above=1.5mm,font=\small,text=ink]{152};
+        \node[note,text=ink,font=\small\bfseries] at (2.8,1.25) {Regression};
+        \node[note] at (2.8,-1.12) {The target is a \textbf{number}};
+      \end{tikzpicture}
+  \end{columns}
+  \vspace{8mm}
+  \takeaway{The target type decides the model family, the baseline, the splitter and the metrics.}
+\end{frame}
+
+\begin{frame}{One workflow, every time}
+  \centering
+  \begin{tikzpicture}[node distance=3.4mm,
+      every node/.append style={},stage/.append style={minimum width=15.4mm,inner xsep=1mm},
+      note/.append style={font=\scriptsize,text width=18mm}]
+    \node[stage] (a) {Audit};
+    \node[stage,right=of a] (b) {Define};
+    \node[stage,right=of b] (c) {Split};
+    \node[stage,right=of c] (d) {Pipeline};
+    \node[stage,right=of d] (e) {Compare};
+    \node[stage=good,right=of e] (f) {Evaluate\\once};
+    \node[stage=warm,right=of f] (g) {State\\limits};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g} \draw[flow] (\x)--(\y);
+    \node[note,below=2.5mm of a] {types, gaps,\\duplicates};
+    \node[note,below=2.5mm of b] {target and\\timing};
+    \node[note,below=2.5mm of c] {before any\\fitting};
+    \node[note,below=2.5mm of d] {preprocessing\\+ model};
+    \node[note,below=2.5mm of e] {against a\\baseline};
+    \node[note,below=2.5mm of f] {held-out\\test set};
+    \node[note,below=2.5mm of g] {limits of\\the result};
+  \end{tikzpicture}
+\end{frame}
+
+% ------------------------------------------------------------------ Part 0
+\notebookslide{Part 0 \,\textperiodcentered\, Healthcare data processing}{Know the data before modelling it}{What should you check in any health dataset before anyone builds a model on it?}
+
+\begin{frame}{Five checks before any model}
+  \centering
+  \begin{tikzpicture}[node distance=3.4mm,stage/.append style={minimum width=23.5mm,minimum height=12mm,inner xsep=1mm},
+      note/.append style={font=\scriptsize,text width=24mm}]
+    \node[stage] (a) {\textbf{1}\\Structure};
+    \node[stage,right=of a] (b) {\textbf{2}\\Identifiers};
+    \node[stage,right=of b] (c) {\textbf{3}\\Odd values};
+    \node[stage,right=of c] (d) {\textbf{4}\\Relationships};
+    \node[stage=good,right=of d] (e) {\textbf{5}\\Timing};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e} \draw[flow] (\x)--(\y);
+    \node[note,below=2.5mm of a] {types, missing values, duplicates};
+    \node[note,below=2.5mm of b] {columns that are unique per row};
+    \node[note,below=2.5mm of c] {values outside the plausible range};
+    \node[note,below=2.5mm of d] {do known patterns appear?};
+    \node[note,below=2.5mm of e] {when is each value known?};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \takeaway{Each check ends in a decision or a question for the data owner. The course CSV is the worked example.}
+\end{frame}
+
+\begin{frame}{Checks 1 and 2: structure and identifiers}
+  \nbtag{Part 0 \S2--3}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}
+      \begin{itemize}
+        \item Report \textbf{missing values} per column
+        \item Count \textbf{exact duplicate rows} and remove them before splitting
+        \item Count \textbf{distinct values}: a column that is unique per row is an identifier
+        \item Keep identifiers out of the features
+      \end{itemize}
+    \column{.46\textwidth}
+      \begin{examplebox}{Course CSV \,\textperiodcentered\, 55,500 rows}
+        \begin{columns}[T,onlytextwidth]
+          \column{.32\textwidth}\keynumber[accent]{0}{missing values}
+          \column{.32\textwidth}\keynumber[gold]{534}{duplicate rows}
+          \column{.32\textwidth}\keynumber[warm]{90\%}{of \code{Name} values are unique}
+        \end{columns}
+      \end{examplebox}
+  \end{columns}
+  \vspace{5mm}
+  \takeaway{A model given an identifier memorises rows; zero missing values usually signals synthetic data.}
+\end{frame}
+
+\begin{frame}{Check 3: treat an odd value as a question}
+  \nbtag{Part 0 \S4}
+  \begin{columns}[c,onlytextwidth]
+    \column{.4\textwidth}
+      \begin{itemize}
+        \item List values outside the plausible range
+        \item Write down every explanation that fits
+        \item Keep the rows until the data owner confirms one
+      \end{itemize}
+    \column{.57\textwidth}
+      \begin{examplebox}{Course CSV \,\textperiodcentered\, 106 bills at or below zero}
+        \centering
+        \begin{tikzpicture}[node distance=2.5mm,stage/.append style={font=\footnotesize,minimum height=8mm,inner xsep=2mm}]
+          \node[stage=warm,minimum width=30mm] (q) {Billing amount $\le 0$};
+          \node[stage,minimum width=30mm,below left=5mm and -13mm of q] (a) {Refund};
+          \node[stage,minimum width=30mm,below right=5mm and -13mm of q] (b) {Reversed charge};
+          \node[stage,minimum width=30mm,below=of a] (c) {Adjustment};
+          \node[stage,minimum width=30mm,below=of b] (d) {Entry error};
+          \draw[flow] (q.south) -- (a.north); \draw[flow] (q.south) -- (b.north);
+        \end{tikzpicture}
+      \end{examplebox}
+  \end{columns}
+  \vspace{2mm}
+  \takeaway{Each explanation needs a different response, so keep the rows until one is confirmed.}
+\end{frame}
+
+\nbexample[.42\textheight]{Part 0 \S4}{Plot the same two variables}{ml0-distributions}
+  {A summary table gives the minimum; the plot shows \textbf{how many} values sit near it and whether the shape is believable at all.}
+
+\begin{frame}{Check 4: do known relationships appear?}
+  \nbtag{Part 0 \S5}
+  \begin{columns}[c,onlytextwidth]
+    \column{.33\textwidth}
+      \begin{itemize}
+        \item Pick a relationship you expect clinically
+        \item Plot it
+        \item A flat result means weak signal or generated data
+      \end{itemize}
+    \column{.64\textwidth}
+      \begin{examplebox}{Course CSV \,\textperiodcentered\, expected: emergency care costs more}
+        \centering
+        \begin{tikzpicture}
+          \begin{axis}[clean,ybar,width=44mm,height=34mm,ymin=0,ymax=45,bar width=5.5mm,
+              symbolic x coords={Abn.,Norm.,Inc.},xtick=data,enlarge x limits=.3,
+              nodes near coords,nodes near coords style={font=\scriptsize},tick label style={font=\scriptsize},
+              title={\scriptsize\bfseries Test results (\%)},title style={text=navy,yshift=-1mm}]
+            \addplot[fill=accent!70,draw=none] coordinates {(Abn.,33.5) (Norm.,33.3) (Inc.,33.1)};
+          \end{axis}
+        \end{tikzpicture}\hspace{1mm}
+        \begin{tikzpicture}
+          \begin{axis}[clean,ybar,width=44mm,height=34mm,ymin=0,ymax=34,bar width=5.5mm,
+              symbolic x coords={Elect.,Emerg.,Urg.},xtick=data,enlarge x limits=.3,
+              nodes near coords,nodes near coords style={font=\scriptsize},tick label style={font=\scriptsize},
+              title={\scriptsize\bfseries Mean bill (\$ thousand)},title style={text=navy,yshift=-1mm}]
+            \addplot[fill=gold!80,draw=none] coordinates {(Elect.,25.6) (Emerg.,25.5) (Urg.,25.5)};
+          \end{axis}
+        \end{tikzpicture}
+      \end{examplebox}
+  \end{columns}
+  \vspace{2mm}
+  \takeaway{When expected patterns are absent, use the data for practice and benchmark on other data.}
+\end{frame}
+
+\nbexample[.54\textheight]{Part 0 \S5}{Billing by admission type}{ml0-billing-by-type}
+  {Emergency, urgent and elective stays bill almost identically. Real hospital data would differ, so this file cannot teach that relationship.}
+
+\begin{frame}{Check 5: prediction time decides what is usable}
+  \centering
+  \begin{tikzpicture}[x=.93mm,y=1mm]
+    \draw[line width=1pt,color=muted,-{Stealth[length=2.4mm]}] (0,0) -- (146,0);
+    \foreach \x/\l in {28/Admission,80/Testing and care,110/Discharge,137/Billing}{
+      \fill[navy] (\x,0) circle (1.1);
+      \node[font=\small\bfseries,text=navy,below=2mm] at (\x,0) {\l};}
+    \draw[good,line width=.8pt,dashed] (61,19) -- (61,-13);
+    \node[font=\footnotesize\bfseries,text=good,anchor=north east] at (60,-8.5) {prediction made here};
+    \node[stage=good,anchor=south,font=\footnotesize,align=left] at (28,5)
+      {Age \,\textperiodcentered\, Gender \,\textperiodcentered\, Blood type\\Condition \,\textperiodcentered\, Insurer \,\textperiodcentered\, Admission type};
+    \node[stage=gold,anchor=south,font=\footnotesize] at (80,5) {Medication\\\soft{timing unclear}};
+    \node[stage=warm,anchor=south,font=\footnotesize] at (110,5) {Discharge date\\Length of stay};
+    \node[stage=warm,anchor=south,font=\footnotesize] at (137,5) {Billing\\amount};
+    \node[font=\scriptsize\bfseries,text=muted,anchor=west] at (0,23) {EXAMPLE \,\textperiodcentered\, COURSE CSV, PREDICTING AT ADMISSION};
+  \end{tikzpicture}
+  \vspace{4mm}
+  \takeaway{State the moment of prediction first; a column is usable only if its value exists \textbf{at that moment}.}
+\end{frame}
+
+\begin{frame}{Give every column a role}
+  \nbtag{Part 0 \S6}
+  \centering
+  \renewcommand{\arraystretch}{1.45}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{30mm} >{\raggedright\arraybackslash}p{52mm} >{\raggedright\arraybackslash}p{46mm}@{}}
+    \eyebrow{Role} & \eyebrow{Decision} & \eyebrow{Example \,\textperiodcentered\, course CSV}\\\midrule
+    \leavevmode{\color{good}\bfseries Available} & use, after confirming timing & \leavevmode\soft{Age, Condition, Admission type}\\
+    \leavevmode{\color{gold}\bfseries Timing unclear} & ask the data owner & \leavevmode\soft{Medication}\\
+    \leavevmode{\color{warm}\bfseries Future or outcome} & exclude from features & \leavevmode\soft{Discharge date, Billing amount}\\
+    \leavevmode{\color{warm}\bfseries Identifier} & exclude from features & \leavevmode\soft{Name}\\
+    \leavevmode{\color{muted}\bfseries Operational} & exclude, or state the site dependence & \leavevmode\soft{Doctor, Hospital, Room}\\
+  \end{tabular}}
+  \vspace{4mm}
+  \takeaway{Write the role of every column down before choosing features.}
+\end{frame}
+
+\begin{frame}{Leakage takes two forms}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{1 \,\textperiodcentered\, Future information}\\[2mm]
+      \textbf{Using a value from the future}\\[2mm]
+      {\small\soft{Predicting at admission with \code{Discharge Date}, or with a length of stay derived from it.}}
+    \column{.47\textwidth}
+      \eyebrow{2 \,\textperiodcentered\, Preprocessing}\\[2mm]
+      \textbf{Letting a fitted step see every row}\\[2mm]
+      {\small\soft{Scaling, imputing, encoding or selecting features before the data are split.}}
+  \end{columns}
+  \vspace{10mm}
+  \takeaway{Leakage runs silently and makes the result look \textbf{better}.}
+\end{frame}
+
+% ----------------------------------------------------------------- Part 1A
+\notebookslide{Part 1A \,\textperiodcentered\, Classification}{Predicting a category}{Can tumour measurements classify a recorded diagnosis --- and how would we know?}
+
+\begin{frame}{Split first. Evaluate once.}
+  \centering
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    \foreach \r in {0,...,4}{
+      \foreach \c in {0,...,4}{
+        \ifnum\r=\c
+          \fill[gold!85] (\c*17,-\r*5.4) rectangle ++(16,4.3);
+        \else
+          \fill[accent!22] (\c*17,-\r*5.4) rectangle ++(16,4.3);
+        \fi}
+      \node[font=\footnotesize,text=muted,anchor=east] at (-2,-\r*5.4+2.15) {fold \the\numexpr\r+1\relax};}
+    \node[font=\small\bfseries,text=accent] at (42,8.5) {Training portion \,\textperiodcentered\, 80\%};
+    \fill[navy!85] (96,-21.6) rectangle ++(30,25.9);
+    \node[font=\small\bfseries,text=white,align=center] at (111,-8.6) {Held-out\\test set};
+    \node[font=\small\bfseries,text=navy] at (111,8.5) {20\%};
+    \fill[accent!22] (0,-29) rectangle ++(5,3.2); \node[note,anchor=west] at (6,-27.4) {fit};
+    \fill[gold!85] (18,-29) rectangle ++(5,3.2); \node[note,anchor=west] at (24,-27.4) {validate};
+  \end{tikzpicture}
+  \vspace{2mm}
+  \takeaway{Cross-validation picks the candidate; the test set grades it \textbf{once}.}
+\end{frame}
+
+\begin{frame}{Everything that learns goes inside the pipeline}
+  \centering
+  \begin{tikzpicture}[node distance=5mm]
+    \node[stage=muted,minimum width=24mm] (num) {Numeric\\columns};
+    \node[stage=muted,minimum width=24mm,below=9mm of num] (cat) {Categorical\\columns};
+    \node[stage,right=9mm of num] (i1) {Impute\\median};
+    \node[stage,right=of i1] (s1) {Scale};
+    \node[stage,right=9mm of cat] (i2) {Impute\\most frequent};
+    \node[stage,right=of i2] (s2) {One-hot\\encode};
+    \node[stage=good,minimum height=27mm,minimum width=20mm] (m) at ($(s1.east)!.5!(s2.east)+(24mm,0)$) {Model};
+    \draw[flow] (num)--(i1); \draw[flow] (i1)--(s1); \draw[flow] (cat)--(i2); \draw[flow] (i2)--(s2);
+    \draw[flow] (s1.east) -- (s1.east -| m.west);
+    \draw[flow] (s2.east) -- (s2.east -| m.west);
+    \begin{scope}[on background layer]
+      \node[draw=accent,dashed,line width=.7pt,rounded corners=3pt,inner sep=4mm,fit=(i1)(s2)(m)] (p) {};
+    \end{scope}
+    \node[font=\footnotesize\bfseries,text=accent,anchor=south west] at (p.north west) {Pipeline --- refitted inside every training fold};
+  \end{tikzpicture}
+  \vspace{3mm}
+  \takeaway{Every step that learns from data belongs inside the pipeline.}
+\end{frame}
+
+\begin{frame}{Encode each category as its own column}
+  \nbtag{Part 1A \S7}
+  \begin{columns}[c,onlytextwidth]
+    \column{.56\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \node[font=\footnotesize\bfseries,text=navy] at (12,6) {Admission type};
+        \foreach \r/\v in {0/Emergency,1/Elective,2/Urgent}
+          \node[cell,fill=hair!60,minimum width=24mm,minimum height=7mm] at (12,-\r*7.4) {\v};
+        \draw[flow] (27,-7.4) -- (37,-7.4);
+        \foreach \c/\h in {0/Emerg.,1/Elect.,2/Urgent}
+          \node[font=\footnotesize\bfseries,text=navy] at (46+\c*13,6) {\h};
+        \foreach \r/\a/\b/\cc in {0/1/0/0,1/0/1/0,2/0/0/1}{
+          \foreach \c/\v in {0/\a,1/\b,2/\cc}{
+            \ifnum\v=1 \node[cell,fill=accent!30,minimum width=12mm,minimum height=7mm] at (46+\c*13,-\r*7.4) {\v};
+            \else      \node[cell,fill=hair!45,minimum width=12mm,minimum height=7mm,text=muted] at (46+\c*13,-\r*7.4) {\v};\fi}}
+      \end{tikzpicture}
+    \column{.4\textwidth}
+      \textbf{Codes \code{1, 2, 3} imply an order}\\[1mm]
+      {\small\soft{They tell the model the categories are ranked and evenly spaced.}}\\[5mm]
+      \textbf{6 columns $\rightarrow$ 25}\\[1mm]
+      {\small\soft{\code{Doctor} has 40,000 values: one-hot would add 40,000 columns.}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{The baseline sets the bar}
+  \nbtag{Part 1A \S4}
+  \begin{columns}[c,onlytextwidth]
+    \column{.58\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ybar,width=76mm,height=46mm,ymin=0,ymax=1.18,bar width=10mm,
+            symbolic x coords={Dummy baseline,Logistic regression},xtick=data,enlarge x limits=.5,
+            ytick={0,.5,1},nodes near coords,nodes near coords style={/pgf/number format/.cd,fixed,precision=2},
+            area legend,legend style={at={(0.5,1.02)},anchor=south,legend columns=2,/tikz/every even column/.append style={column sep=4mm}}]
+          \addplot[fill=hair!120,draw=none] coordinates {(Dummy baseline,.63) (Logistic regression,.98)};
+          \addplot[fill=accent!75,draw=none] coordinates {(Dummy baseline,.39) (Logistic regression,.98)};
+          \legend{Accuracy,Macro F1}
+        \end{axis}
+      \end{tikzpicture}
+    \column{.38\textwidth}
+      {\small Classes are unbalanced:\\ \textbf{63\% benign, 37\% malignant}.}\\[4mm]
+      {\small A dummy that always answers ``benign'' scores \textbf{0.63 accuracy} and misses every malignant case.}
+  \end{columns}
+  \vspace{1mm}
+  \takeaway{Choose the metric \textbf{before} seeing the results.}
+\end{frame}
+
+\begin{frame}{Read errors by direction}
+  \nbtag{Part 1A \S5}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \node[font=\footnotesize,text=muted] at (26,21) {Predicted};
+        \node[font=\footnotesize\bfseries,text=navy] at (15,15) {malignant};
+        \node[font=\footnotesize\bfseries,text=navy] at (37,15) {benign};
+        \node[font=\footnotesize,text=muted,rotate=90] at (-13,-1) {Actual};
+        \node[font=\footnotesize\bfseries,text=navy,anchor=east] at (3,5) {malignant};
+        \node[font=\footnotesize\bfseries,text=navy,anchor=east] at (3,-7) {benign};
+        \node[cell,fill=accent!55,minimum width=21mm,minimum height=11mm,font=\large\bfseries,text=white] at (15,5) {41};
+        \node[cell,fill=warm!30,minimum width=21mm,minimum height=11mm,font=\large\bfseries] at (37,5) {1};
+        \node[cell,fill=gold!30,minimum width=21mm,minimum height=11mm,font=\large\bfseries] at (15,-7) {1};
+        \node[cell,fill=accent!85,minimum width=21mm,minimum height=11mm,font=\large\bfseries,text=white] at (37,-7) {71};
+      \end{tikzpicture}
+    \column{.46\textwidth}
+      {\color{warm}\rule{3mm}{3mm}}\; \textbf{False negative}\\
+      {\small\soft{A malignancy the model missed.}}\\[5mm]
+      {\color{gold}\rule{3mm}{3mm}}\; \textbf{False positive}\\
+      {\small\soft{An unnecessary follow-up.}}\\[5mm]
+      {\small Accuracy weighs both equally. For a patient, a missed malignancy is far worse.}
+  \end{columns}
+  \vspace{4mm}
+  \takeaway{Accuracy 0.98 on 114 held-out cases is one estimate from one split.}
+\end{frame}
+
+\begin{frame}{Which mistake costs more?}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{Precision}\\[2mm]
+      \textbf{Of the cases flagged, how many were real?}\\[3mm]
+      $\displaystyle \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}}$\\[4mm]
+      {\small\soft{Lead with it when a \textbf{false alarm} is costly: an invasive follow-up, alert fatigue.}}
+    \column{.47\textwidth}
+      \eyebrow{Recall \,\textperiodcentered\, sensitivity}\\[2mm]
+      \textbf{Of the real cases, how many were found?}\\[3mm]
+      $\displaystyle \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FN}}$\\[4mm]
+      {\small\soft{Lead with it when a \textbf{miss} is costly: a malignancy, a deteriorating patient.}}
+  \end{columns}
+  \vspace{6mm}
+  \takeaway{Set the threshold by the cost of each mistake.}
+\end{frame}
+
+\begin{frame}{AUC measures ranking}
+  \nbtag{Part 1A \S6}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,width=62mm,height=56mm,xmin=0,xmax=1,ymin=0,ymax=1.03,
+            xlabel={False-positive rate},ylabel={True-positive rate},xtick={0,.5,1},ytick={0,.5,1}]
+          \addplot[draw=muted,dashed,line width=.6pt] coordinates {(0,0) (1,1)};
+          \addplot[draw=accent,line width=1.4pt,fill=accent,fill opacity=.10] coordinates
+            {(0,0) (0,.014) (0,.806) (.024,.806) (.024,1) (1,1) (1,0)} ;
+          \addplot[draw=accent,line width=1.4pt] coordinates {(0,0) (0,.806) (.024,.806) (.024,1) (1,1)};
+          \node[font=\small\bfseries,text=accent] at (axis cs:.58,.42) {AUC = 0.995};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.46\textwidth}
+      \textbf{What it asks}\\[1mm]
+      {\small\soft{Draw one case of each class. How often does the malignant one score higher?}}\\[5mm]
+      \textbf{What you still need}
+      \begin{itemize}\small
+        \item a chosen decision threshold
+        \item a calibration check
+        \item evidence that acting on it helps
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+% ----------------------------------------------------------------- Part 1B
+\notebookslide{Part 1B \,\textperiodcentered\, Regression}{Predicting a number}{Can baseline measurements estimate a disease-progression score --- and by how much do we miss?}
+
+\begin{frame}{Three metrics, three questions}
+  \begin{columns}[T,onlytextwidth]
+    \column{.31\textwidth}
+      \eyebrow{MAE}\\[2mm] \textbf{How large is a typical error?}\\[3mm]
+      $\displaystyle \frac{1}{n}\sum_i |y_i-\hat y_i|$\\[4mm]
+      {\small\soft{In the target's units. Easy to explain.}}
+    \column{.31\textwidth}
+      \eyebrow{RMSE}\\[2mm] \textbf{Same, but punish big misses}\\[3mm]
+      $\displaystyle \sqrt{\frac{1}{n}\sum_i (y_i-\hat y_i)^2}$\\[4mm]
+      {\small\soft{A 10-unit error counts four times a 5-unit error.}}
+    \column{.31\textwidth}
+      \eyebrow{R\textsuperscript{2}}\\[2mm] \textbf{How much better than the mean?}\\[3mm]
+      $\displaystyle 1-\frac{\sum_i (y_i-\hat y_i)^2}{\sum_i (y_i-\bar y)^2}$\\[4mm]
+      {\small\soft{Unitless. Zero means equal to predicting the mean.}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Better than baseline --- and still mostly unexplained}
+  \nbtag{Part 1B \S5}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[cleanx,xbar,width=48mm,height=38mm,xmin=0,xmax=92,bar width=7.5mm,
+            symbolic y coords={Ridge regression,Dummy mean},ytick=data,enlarge y limits=.6,
+            xlabel={Cross-validated MAE},xtick={0,40,80},nodes near coords,
+            nodes near coords style={/pgf/number format/.cd,fixed,precision=1}]
+          \addplot[fill=accent!75,draw=none] coordinates {(45.0,Ridge regression) (66.9,Dummy mean)};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.22\textwidth}\keynumber[accent]{0.48}{R\textsuperscript{2}, cross-validated}
+    \column{.22\textwidth}\keynumber{0.45}{R\textsuperscript{2}, held-out test}
+  \end{columns}
+  \vspace{5mm}
+  \takeaway{A model can beat its baseline and \textbf{still be too weak to act on}.}
+\end{frame}
+
+\begin{frame}{Reading R\textsuperscript{2} correctly}
+  \centering
+  \begin{tikzpicture}[x=78mm,y=1mm]
+    \shade[left color=warm!45,right color=warm!8] (-.3,-2) rectangle (0,2);
+    \shade[left color=good!8,right color=good!55] (0,-2) rectangle (1,2);
+    \foreach \x/\l in {-.3/$-0.3$,0/0,.5/0.5,1/1}{\draw[color=muted] (\x,-2)--(\x,-4.5) node[below,font=\footnotesize,text=muted]{\l};}
+    \draw[navy,line width=.9pt] (.45,2) -- (.45,10) node[above,font=\small\bfseries,text=navy,align=center]{0.45 \,\textperiodcentered\, this model};
+    \draw[muted,line width=.7pt] (0,2) -- (0,21) node[above,font=\small,text=ink,align=center]{predicting the mean};
+    \draw[muted,line width=.7pt] (1,2) -- (1,10) node[above,font=\small,text=ink]{perfect};
+    \draw[warm,line width=.7pt] (-.17,2) -- (-.17,10) node[above,font=\small,text=warm,align=center]{worse than\\the mean};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \takeaway{A negative R\textsuperscript{2} means the model did \textbf{worse than predicting the mean}.}
+\end{frame}
+
+\begin{frame}{What the metrics hide: compressed predictions}
+  \nbtag{Part 1B \S6}
+  \begin{columns}[c,onlytextwidth]
+    \column{.56\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ymajorgrids=false,width=84mm,height=50mm,domain=-60:360,samples=90,ymin=0,
+            ytick=\empty,axis y line=none,xlabel={Progression score},xtick={0,100,200,300},
+            legend style={at={(.5,1.03)},anchor=south,legend columns=2,/tikz/every even column/.append style={column sep=4mm}},area legend]
+          \addplot[draw=muted,line width=1.2pt,fill=muted,fill opacity=.10] {exp(-((x-150)^2)/(2*73.2^2))/73.2} \closedcycle;
+          \addplot[draw=accent,line width=1.4pt,fill=accent,fill opacity=.14] {exp(-((x-150)^2)/(2*53.7^2))/53.7} \closedcycle;
+          \legend{Actual values \,(SD 73),Predictions \,(SD 54)}
+        \end{axis}
+      \end{tikzpicture}\\[-1mm]
+      {\scriptsize\soft{Illustrative curves drawn from the measured standard deviations.}}
+    \column{.4\textwidth}
+      {\small The model rarely predicts very high or very low scores, so it is least informative where decisions are made.}\\[4mm]
+      {\small\soft{Only the plot reveals this.}}
+  \end{columns}
+\end{frame}
+
+\nbexample[.44\textheight]{Part 1B \S6}{Actual against predicted, and the residuals}{ml1b-residuals}
+  {Predictions bunch toward the middle: high scores are under-predicted and low scores over-predicted, which no single metric reports.}
+
+\begin{frame}{Leakage can manufacture a result}
+  \nbtag{Part 1B \S7}
+  \begin{columns}[c,onlytextwidth]
+    \column{.4\textwidth}
+      \eyebrow{The set-up}\\[2mm]
+      {\small 200 rows, 2,000 features and a target, \textbf{all pure random noise}.}\\[4mm]
+      {\small Pick the 20 features that correlate best with the target, then cross-validate a model.}\\[4mm]
+      {\small\soft{The true answer is R\textsuperscript{2} = 0.}}
+    \column{.56\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ybar,width=70mm,height=52mm,ymin=-.45,ymax=.5,bar width=15mm,
+            symbolic x coords={Select first then cross-validate,Select inside the pipeline},xtick={Select first then cross-validate,Select inside the pipeline},
+            x tick label style={font=\footnotesize,text width=30mm,align=center},enlarge x limits=.55,
+            ytick={-.4,-.2,0,.2,.4},ylabel={Mean R\textsuperscript{2}},
+            extra y ticks={0},extra y tick style={grid style={draw=navy,line width=.8pt}}]
+          \addplot[fill=warm!80,draw=none,bar shift=0pt,nodes near coords={+0.32},nodes near coords style={font=\small\bfseries,text=warm}]
+            coordinates {(Select first then cross-validate,.318)};
+          \addplot[fill=good!75,draw=none,bar shift=0pt,nodes near coords={$-$0.28},
+            nodes near coords style={font=\small\bfseries,text=good,anchor=north}]
+            coordinates {(Select inside the pipeline,-.280)};
+        \end{axis}
+      \end{tikzpicture}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{The defence is structural}
+  \centering
+  \begin{tikzpicture}[node distance=5mm]
+    \node[font=\footnotesize\bfseries,text=warm,anchor=east] (lw) at (0,0) {LEAKS};
+    \node[stage=warm,right=6mm of lw] (w1) {Select features\\on \textbf{all} rows};
+    \node[stage=muted,right=of w1] (w2) {Split into folds};
+    \node[stage=muted,right=of w2] (w3) {Fit and score};
+    \draw[flow] (w1)--(w2); \draw[flow] (w2)--(w3);
+    \node[font=\footnotesize\bfseries,text=good,anchor=east] (lr) at (0,-22mm) {SAFE};
+    \node[stage=muted,right=6mm of lr] (r1) {Split into folds};
+    \node[stage=good,right=11mm of r1] (r2) {Select features\\on the \textbf{training fold}};
+    \node[stage=good,right=of r2] (r3) {Fit and score};
+    \draw[flow] (r1)--(r2); \draw[flow] (r2)--(r3);
+    \begin{scope}[on background layer]
+      \node[draw=good,dashed,line width=.7pt,rounded corners=3pt,inner sep=2.6mm,fit=(r2)(r3)] (p) {};
+    \end{scope}
+    \node[font=\footnotesize\bfseries,text=good,anchor=north east] at (p.south east) {one Pipeline object};
+  \end{tikzpicture}
+  \vspace{4mm}
+  \takeaway{\textbf{Put feature selection inside the pipeline, so it only ever sees the training fold.}}
+\end{frame}
+
+\begin{frame}{Before you report any number}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \begin{itemize}
+        \item[\color{good}\faIcon{check}] Every feature exists at prediction time
+        \item[\color{good}\faIcon{check}] The split came before any fitting
+        \item[\color{good}\faIcon{check}] Every fitted step is inside the pipeline
+      \end{itemize}
+    \column{.47\textwidth}
+      \begin{itemize}
+        \item[\color{good}\faIcon{check}] The metric was chosen before the results
+        \item[\color{good}\faIcon{check}] The model was compared with a dummy baseline
+        \item[\color{good}\faIcon{check}] The test set was used exactly once
+      \end{itemize}
+  \end{columns}
+  \vspace{9mm}
+  \takeaway{If a result is much better than expected, \textbf{check for leakage first}.}
+\end{frame}
+
+\begin{frame}{What still needs separate evidence}
+  \vspace{2mm}
+  \begin{columns}[T,onlytextwidth]
+    \column{.19\textwidth}\centering{\Large\color{accent}\faIcon{hospital}}\\[2mm]\textbf{\small Another site}\\[1mm]{\footnotesize\soft{or a later year}}
+    \column{.19\textwidth}\centering{\Large\color{accent}\faIcon{bullseye}}\\[2mm]\textbf{\small Calibration}\\[1mm]{\footnotesize\soft{are 80\% risks right 80\% of the time?}}
+    \column{.19\textwidth}\centering{\Large\color{accent}\faIcon{users}}\\[2mm]\textbf{\small Subgroups}\\[1mm]{\footnotesize\soft{who carries the errors?}}
+    \column{.19\textwidth}\centering{\Large\color{accent}\faIcon{project-diagram}}\\[2mm]\textbf{\small Causation}\\[1mm]{\footnotesize\soft{needs a causal study design}}
+    \column{.19\textwidth}\centering{\Large\color{accent}\faIcon{stethoscope}}\\[2mm]\textbf{\small Usefulness}\\[1mm]{\footnotesize\soft{does acting on it help?}}
+  \end{columns}
+  \vspace{9mm}
+  \takeaway{A high score shows the workflow was executed correctly.}
+\end{frame}

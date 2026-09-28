@@ -1,0 +1,30 @@
+% HLTH 667M -- Lab 2 slide deck (both tutorials).
+% Build:  latexmk -pdf lab2-slides.tex      (or: make)
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage{hlth667m}
+
+\title{Lab 2: From Health Data to Grounded Answers}
+\subtitle{Machine-learning pipelines \,\textperiodcentered\, tokens, attention, decoding and RAG}
+\author{HLTH 667M \,\textperiodcentered\, Generative AI Core Techniques}
+\date{Fall 2026}
+
+\begin{document}
+
+% ------------------------------------------------------------------ title
+{\setbeamercolor{background canvas}{bg=navy}
+\begin{frame}[plain,noframenumbering]
+  \vfill
+  {\footnotesize\bfseries\color{sky}HLTH 667M \,\textperiodcentered\, FALL 2026}\\[5mm]
+  {\fontsize{30}{35}\selectfont\bfseries\color{white}Lab 2\par}\vspace{1.5mm}
+  {\fontsize{19}{24}\selectfont\color{white}From health data to grounded answers\par}
+  \vspace{6mm}{\color{sky}\rule{14mm}{1.6pt}}\par\vspace{6mm}
+  {\color{white!75!navy}Tutorial 1 \,\textperiodcentered\, Machine-learning pipelines with scikit-learn\\[1mm]
+   Tutorial 2 \,\textperiodcentered\, Tokens, attention, decoding and retrieval-augmented generation\par}
+  \vfill\vfill
+\end{frame}}
+
+\input{part0-opening}
+\input{part1-ml}
+\input{part2-genai}
+
+\end{document}

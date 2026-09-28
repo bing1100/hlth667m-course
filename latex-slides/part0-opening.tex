@@ -1,0 +1,38 @@
+% ---------------------------------------------------------------- roadmap
+\begin{frame}{Seven notebooks, one path}
+  \centering
+  \begin{tikzpicture}[x=18.6mm,y=10mm]
+    \foreach \i/\tag/\name/\c in {0/0/Audit the\\data/accent,1/1A/Classify/accent,2/1B/Regress/accent,
+        3/0/Tokens/good,4/1/Vectors/good,5/2/Attention\\and masks/good,6/3/Retrieval\\and chat app/good}{
+      \node[circle,draw=\c,fill=\c!12,line width=.8pt,minimum size=10.5mm,font=\small\bfseries,text=navy] (n\i) at (\i,0) {\tag};
+      \node[note,text=ink,below=1.5mm of n\i] {\name};
+    }
+    \foreach \a/\b in {0/1,1/2,2/3,3/4,4/5,5/6} \draw[flow] (n\a) -- (n\b);
+    \draw[decorate,decoration={brace,amplitude=4pt},color=accent,line width=.7pt]
+      ($(n0.north west)+(-.05,.35)$) -- ($(n2.north east)+(.05,.35)$)
+      node[midway,above=3mm,font=\small\bfseries,text=accent] {Tutorial 1 \,\textperiodcentered\, ML pipelines};
+    \draw[decorate,decoration={brace,amplitude=4pt},color=good,line width=.7pt]
+      ($(n3.north west)+(-.05,.35)$) -- ($(n6.north east)+(.05,.35)$)
+      node[midway,above=3mm,font=\small\bfseries,text=good] {Tutorial 2 \,\textperiodcentered\, From tokens to grounded answers};
+  \end{tikzpicture}
+
+  \vspace{7mm}
+  \takeaway{Tutorial 1 teaches how to \textbf{judge a result}; Tutorial 2 teaches how a language model \textbf{produces one}.}
+\end{frame}
+
+\begin{frame}{Ground rules for both tutorials}
+  \begin{columns}[T,onlytextwidth]
+    \column{.31\textwidth}\centering
+      {\fontsize{22}{22}\selectfont\color{accent}\faIcon{file-alt}}\\[3mm]
+      \textbf{Teaching data only}\\[1.5mm]
+      {\small\soft{A synthetic CSV, bundled benchmarks, and fictional clinic documents.}}
+    \column{.31\textwidth}\centering
+      {\fontsize{22}{22}\selectfont\color{warm}\faIcon{user-shield}}\\[3mm]
+      \textbf{Sensitive data stays outside}\\[1.5mm]
+      {\small\soft{Patient data, PHI and credentials stay out of every notebook, prompt, screenshot and log.}}
+    \column{.31\textwidth}\centering
+      {\fontsize{22}{22}\selectfont\color{good}\faIcon{balance-scale}}\\[3mm]
+      \textbf{We study mechanisms}\\[1.5mm]
+      {\small\soft{Results show how methods work. Clinical use needs its own evidence.}}
+  \end{columns}
+\end{frame}

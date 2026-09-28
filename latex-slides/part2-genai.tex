@@ -1,0 +1,1039 @@
+% =====================================================================
+%  TUTORIAL 2 -- FROM TOKENS TO GROUNDED ANSWERS
+% =====================================================================
+\tutorialslide{Tutorial 2}{From tokens to grounded answers}{How text becomes numbers, how a model combines them, how it picks words --- and how evidence gets in.}
+
+\begin{frame}{Five mechanisms, five questions}
+  \centering
+  \begin{tikzpicture}[node distance=4mm,stage/.append style={minimum width=23mm}]
+    \node[stage=good] (a) {Tokens};
+    \node[stage=good,right=of a] (b) {Vectors};
+    \node[stage=good,right=of b] (c) {Attention};
+    \node[stage=muted,right=of c] (d) {Decoding};
+    \node[stage=good,right=of d] (e) {Retrieval};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e} \draw[flow] (\x)--(\y);
+    \begin{scope}[note/.append style={text width=24mm,font=\footnotesize}]
+    \node[note,below=3mm of a] {How does text become numbers?};
+    \node[note,below=3mm of b] {How does a token get a meaning?};
+    \node[note,below=3mm of c] {How do tokens use each other?};
+    \node[note,below=3mm of d] {How is the next word chosen?};
+    \node[note,below=3mm of e] {How does evidence get in?};
+    \end{scope}
+    \foreach \n/\l in {a/PART 0,b/PART 1,c/PART 2,d/SLIDES ONLY,e/PART 3}
+      \node[font=\scriptsize\bfseries,text=muted,above=1.5mm of \n] {\l};
+  \end{tikzpicture}
+\end{frame}
+
+% ------------------------------------------------------------------ Part 0
+\notebookslide{Part 0 \,\textperiodcentered\, Tokenization}{A model reads tokens}{How does a sentence of clinical text become the numbers a language model actually receives?}
+
+\begin{frame}{Clinical words arrive in pieces}
+  \centering\renewcommand{\toksize}{\small}
+  \renewcommand{\arraystretch}{1.8}
+  \begin{tabular}{@{}l @{\hspace{10mm}} l @{\hspace{10mm}} r@{}}
+    \eyebrow{Written} & \eyebrow{What the model receives} & \eyebrow{Tokens}\\
+    \code{portal}                & \tok[good]{portal} & 1\\
+    \code{metformin}             & \tok{met}\,\tok{form}\,\tok{in} & 3\\
+    \code{myocardial infarction} & \tok{myocard}\,\tok{ial}\,\tok[gold]{inf}\,\tok[gold]{ar}\,\tok[gold]{ction} & 5\\
+    \code{HbA1c}                 & \tok[warm]{H}\,\tok[warm]{b}\,\tok[warm]{A}\,\tok[warm]{1}\,\tok[warm]{c} & 5\\
+  \end{tabular}
+  \vspace{3mm}
+  \takeaway{Clinical vocabulary costs several tokens per word, so the model handles it as \textbf{fragments}. {\footnotesize\soft{Tokenizer: \code{cl100k\_base}.}}}
+\end{frame}
+
+\begin{frame}{Byte pair encoding: merge what is frequent}
+  \centering\renewcommand{\toksize}{\normalsize}
+  \renewcommand{\arraystretch}{1.9}
+  \begin{tabular}{@{}r @{\hspace{8mm}} l@{}}
+    {\footnotesize\soft{start}}   & \tok[good]{p}\,\tok[good]{o}\,\tok[good]{r}\,\tok[good]{t}\,\tok[good]{a}\,\tok[good]{l}\\
+    {\footnotesize\soft{merge 1}} & \tok[gold]{po}\,\tok[good]{r}\,\tok[good]{t}\,\tok[gold]{al}\\
+    {\footnotesize\soft{merge 2}} & \tok[gold]{port}\,\tok[good]{al}\\
+    {\footnotesize\soft{merge 3}} & \tok[gold]{portal}\\
+  \end{tabular}\\[1mm]
+  {\scriptsize\soft{Illustrative merge order. Gold marks the newly merged symbol.}}
+  \vspace{3mm}
+  \takeaway{BPE repeatedly merges the most frequent adjacent pair; the ordered list of merges \textbf{is} the tokenizer.}
+\end{frame}
+
+\begin{frame}{Frequency decides the cost}
+  \nbtag{Part 0 \S5}
+  \begin{columns}[c,onlytextwidth]
+    \column{.6\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[cleanx,xbar,width=68mm,height=52mm,xmin=0,xmax=10.5,bar width=2.9mm,
+            symbolic y coords={tachycardia,myocardial,hba1c,metformin,laboratory,appointment,result,portal,the},
+            ytick=data,yticklabels={tachycardia \,{\color{muted}0$\times$},myocardial \,{\color{muted}0$\times$},hba1c \,{\color{muted}2$\times$},
+              metformin \,{\color{muted}2$\times$},laboratory \,{\color{muted}3$\times$},appointment \,{\color{muted}3$\times$},
+              result \,{\color{muted}4$\times$},portal \,{\color{muted}5$\times$},the \,{\color{muted}20$\times$}},
+            y tick label style={font=\ttfamily\footnotesize},xlabel={Tokens needed},nodes near coords,enlarge y limits=.07]
+          \addplot[fill=good!70,draw=none] coordinates {(9,tachycardia) (9,myocardial) (6,hba1c) (8,metformin) (3,laboratory)
+            (1,appointment) (1,result) (1,portal) (1,the)};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.36\textwidth}
+      {\small A hand-built tokenizer, trained on 14 fictional clinic sentences.}\\[4mm]
+      {\small \soft{Grey: times the word appeared in training.}}
+  \end{columns}
+  \takeaway{\textbf{Frequency} decides token cost: rare words cost more.}
+\end{frame}
+
+\begin{frame}{Clinical text costs more}
+  \nbtag{Part 0 \S7}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[cleanx,xbar,width=118mm,height=52mm,xmin=0,xmax=4.6,bar width=5mm,
+        symbolic y coords={Lab panel,Medication list,Clinical narrative,Clinic admin text,Plain English},ytick=data,
+        xlabel={Tokens per word},nodes near coords,nodes near coords style={/pgf/number format/.cd,fixed,fixed zerofill,precision=2},
+        enlarge y limits=.14,extra x ticks={1},extra x tick labels={},extra x tick style={grid style={draw=navy,dashed,line width=.7pt}}]
+      \addplot[fill=accent!75,draw=none] coordinates {(4.00,Lab panel) (2.33,Medication list) (2.00,Clinical narrative)
+        (1.08,Clinic admin text) (1.08,Plain English)};
+    \end{axis}
+  \end{tikzpicture}
+  \vspace{1mm}
+  \takeaway{Price and context limits are counted in \textbf{tokens}, and clinical text uses two to four times more.}
+\end{frame}
+
+\begin{frame}{Same meaning, different tokens}
+  \nbtag{Part 0 \S8}
+  \centering
+  \renewcommand{\arraystretch}{1.6}
+  \begin{tabular}{@{}l c l c@{}}
+    \eyebrow{A clinician says} & & \eyebrow{\ldots\ or says} & \eyebrow{Shared tokens}\\
+    \code{laboratory result} & $\leftrightarrow$ & \code{bloodwork} & {\bfseries\color{warm}0}\\
+    \code{appointment}       & $\leftrightarrow$ & \code{visit} & {\bfseries\color{warm}0}\\
+    \code{laboratory result} & $\leftrightarrow$ & \code{lab result} & {\bfseries\color{gold}1}\\
+    \code{proxy access}      & $\leftrightarrow$ & \code{caregiver access} & {\bfseries\color{gold}1}\\
+  \end{tabular}
+  \vspace{4mm}
+  \takeaway{Tokens come from character frequency, so meaning has to come from vectors (next) or a \textbf{terminology} (Part 3).}
+\end{frame}
+
+% ------------------------------------------------------------------ Part 3
+\notebookslide{Part 1 \,\textperiodcentered\, Word2Vec and t-SNE}{From identity to meaning}{A token ID is only a row number. How does a token acquire a meaning?}
+
+\begin{frame}{Meaning from neighbours}
+  \centering
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    \foreach \i/\w/\c in {0/clinic/accent,1/schedules/accent,2/followup/warm,3/through/accent,4/portal/accent}
+      \node[stage=\c,minimum width=23mm] (w\i) at (\i*27,0) {\w};
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=accent,line width=.7pt] ($(w0.south west)+(0,-2)$) -- ($(w1.south east)+(0,-2)$);
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=accent,line width=.7pt] ($(w3.south west)+(0,-2)$) -- ($(w4.south east)+(0,-2)$);
+    \node[note,text=accent] at (13.5,-12) {context};
+    \node[note,text=accent] at (94.5,-12) {context};
+    \node[note,text=warm] at (54,-12) {centre word};
+    \node[note,text=ink] at (54,11) {window = 2};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \takeaway{Words used in similar contexts end up with similar vectors --- \textbf{for this corpus only}.}
+\end{frame}
+
+\begin{frame}{Two training directions}
+  \begin{columns}[c,onlytextwidth]
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}[node distance=2.2mm,stage/.append style={minimum width=19mm,minimum height=7mm,font=\footnotesize}]
+        \node[stage] (a) {clinic}; \node[stage,below=of a] (b) {schedules};
+        \node[stage,below=of b] (c) {through}; \node[stage,below=of c] (d) {portal};
+        \node[stage=warm,right=16mm of $(b)!.5!(c)$] (t) {followup};
+        \foreach \x in {a,b,c,d} \draw[flow] (\x.east) -- (t.west);
+      \end{tikzpicture}\\[3mm]
+      \textbf{CBOW}\\ {\small\soft{context predicts the centre}}
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}[node distance=2.2mm,stage/.append style={minimum width=19mm,minimum height=7mm,font=\footnotesize}]
+        \node[stage] (a) {clinic}; \node[stage,below=of a] (b) {schedules};
+        \node[stage,below=of b] (c) {through}; \node[stage,below=of c] (d) {portal};
+        \node[stage=warm,left=16mm of $(b)!.5!(c)$] (t) {followup};
+        \foreach \x in {a,b,c,d} \draw[flow] (t.east) -- (\x.west);
+      \end{tikzpicture}\\[3mm]
+      \textbf{Skip-gram} {\small\soft{(used here)}}\\ {\small\soft{the centre predicts its context}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Comparing vectors: cosine similarity}
+  \begin{columns}[c,onlytextwidth]
+    \column{.42\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \draw[hair,line width=.6pt] (0,0) -- (42,0); \draw[hair,line width=.6pt] (0,0) -- (0,36);
+        \draw[-{Stealth[length=2.4mm]},accent,line width=1.3pt] (0,0) -- (36,14) node[right,font=\small,text=accent]{$\mathbf a$};
+        \draw[-{Stealth[length=2.4mm]},good,line width=1.3pt] (0,0) -- (22,31) node[above,font=\small,text=good]{$\mathbf b$};
+        \draw[muted,line width=.6pt] (13,5.05) arc (21.3:54.6:13.9);
+        \node[font=\small,text=ink] at (15.5,11.5) {$\theta$};
+      \end{tikzpicture}
+    \column{.54\textwidth}
+      $\displaystyle \cos\theta \;=\; \frac{\mathbf a\cdot\mathbf b}{\lVert\mathbf a\rVert\,\lVert\mathbf b\rVert}$\\[6mm]
+      \begin{itemize}\small
+        \item Compares \textbf{direction}, ignores length
+        \item $1$: same direction \quad $0$: unrelated
+        \item Measured in the original 50 dimensions
+      \end{itemize}
+  \end{columns}
+  \vspace{4mm}
+  \takeaway{A high similarity describes how two words are used in one corpus.}
+\end{frame}
+
+\begin{frame}{Variety of context beats more rows}
+  \nbtag{Part 1 \S5}
+  \begin{columns}[T,onlytextwidth]
+    \column{.46\textwidth}\centering
+      \eyebrow{Template corpus}\\[3mm]
+      \keynumber[warm]{0.75}{median similarity between selected words}\\[4mm]
+      {\small\soft{240 sentences from one repeated pattern. Nearly every word looks like every other.}}
+    \column{.46\textwidth}\centering
+      \eyebrow{Varied corpus}\\[3mm]
+      \keynumber[good]{0.28}{median similarity between selected words}\\[4mm]
+      {\small\soft{364 sentences with different structures. Words separate into usable neighbourhoods.}}
+  \end{columns}
+  \vspace{7mm}
+  \takeaway{Embedding quality comes from \textbf{variety of context}.}
+\end{frame}
+
+\nbexample[.60\textheight]{Part 1 \S5}{Similarity in the varied corpus}{w2v-similarity}
+  {Read one row: words used in similar sentences score high, and the block structure is what retrieval will rely on.}
+
+\begin{frame}{Reading a t-SNE map}
+  \begin{columns}[c,onlytextwidth]
+    \column{.42\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \draw[hair,line width=.6pt] (0,0) rectangle (52,40);
+        \foreach \x/\y in {9/30,13/34,16/28,11/25,18/32} \fill[accent] (\x,\y) circle (1.1);
+        \foreach \x/\y in {36/31,41/34,43/28,38/26} \node[regular polygon,regular polygon sides=4,fill=warm,inner sep=1.4pt] at (\x,\y) {};
+        \foreach \x/\y in {22/10,27/13,30/8,25/6,32/12} \node[regular polygon,regular polygon sides=3,fill=good,inner sep=1.3pt] at (\x,\y) {};
+        \fill[muted] (26,22) circle (1.1);
+        \node[note,font=\scriptsize] at (26,-3.5) {Schematic of a t-SNE map.};
+      \end{tikzpicture}
+    \column{.54\textwidth}
+      {\color{good}\faIcon{check}}\; \textbf{Reasonable}\\[1mm]
+      {\small\soft{Which words sit in the same local neighbourhood, for this one run.}}\\[5mm]
+      {\color{warm}\faIcon{exclamation-triangle}}\; \textbf{Artefacts of the method}
+      \begin{itemize}\small
+        \item axis directions
+        \item distances between far-apart groups
+        \item the size of a cluster
+        \item the number of clusters
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\nbexample[.60\textheight]{Part 1 \S6}{The map from one run}{w2v-tsne}
+  {Trust the \textbf{local neighbourhoods}; a different seed moves the groups and changes the distances between them.}
+
+% ------------------------------------------------------------------ Part 4
+\notebookslide{Part 2 \,\textperiodcentered\, Attention, masks and training objectives}{How tokens use each other}{How does one attention operation support two different ways of training a language model?}
+
+% ---- Why attention is needed: how transformers are trained -------------
+\begin{frame}{The problem: learning language from raw text}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}
+      \begin{itemize}
+        \item Labelled health text is scarce and expensive
+        \item Unlabelled text is almost unlimited
+        \item So let the text \textbf{label itself}: hide part of it, and train the model to predict what was hidden
+      \end{itemize}
+    \column{.46\textwidth}\centering
+      \begin{tikzpicture}[node distance=3mm,stage/.append style={minimum height=8mm}]
+        \node[stage=muted,minimum width=46mm] (t) {text with a piece hidden};
+        \node[stage=navy,minimum width=46mm,below=of t] (m) {Transformer};
+        \node[stage=gold,minimum width=46mm,below=of m] (p) {prediction of the hidden piece};
+        \node[stage=good,minimum width=46mm,below=of p] (c) {compare with the real text};
+        \draw[flow] (t)--(m); \draw[flow] (m)--(p); \draw[flow] (p)--(c);
+        \draw[flow] (c.east) -- ++(4mm,0) |- node[pos=.25,right,font=\scriptsize,text=muted]{adjust} (m.east);
+      \end{tikzpicture}
+  \end{columns}
+  \vspace{1mm}
+  \takeaway{This is \textbf{self-supervised learning}: the text supplies its own labels.}
+\end{frame}
+
+\begin{frame}{Autoregression: predict the next token}
+  \centering\renewcommand{\toksize}{\small}
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    \node[anchor=west] (ctx) at (0,0) {\tok{An}\,\tok{urgent}\,\tok{result}\,\tok{is}\,\tok{communicated}\,\tok{by}\,\tok{the}};
+    \node[anchor=west] (nx) at ($(ctx.east)+(1,0)$) {\tok[gold]{\ \ ?\ \ }};
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=accent,line width=.7pt]
+      ($(ctx.south west)+(1,-1)$) -- ($(ctx.south east)+(-1,-1)$) node[midway,below=2.5mm,note,text=accent] {sees only what came before};
+    \node[note,text=gold,below=2.2mm] at (nx.south) {predict};
+  \end{tikzpicture}
+
+  \vspace{1mm}
+  {$\displaystyle P(x_1,\dots,x_n)\;=\;\prod_{t=1}^{n} P\bigl(x_t \mid x_1,\dots,x_{t-1}\bigr)$}
+
+  \vspace{2mm}
+  \begin{tikzpicture}[node distance=5mm,stage/.append style={minimum width=27mm,minimum height=8mm}]
+    \node[stage=gold] (a) {predict one token};
+    \node[stage] (b) [right=of a] {append it to the text};
+    \node[stage=good] (c) [right=of b] {repeat};
+    \draw[flow] (a)--(b); \draw[flow] (b)--(c);
+    \draw[flow] (c.south) -- ++(0,-3.5mm) -| (a.south);
+  \end{tikzpicture}
+  \vspace{0mm}
+  \takeaway{GPT-style models \textbf{generate} this way: one token at a time, left to right.}
+\end{frame}
+
+\begin{frame}{Masked language modelling: fill in the blank}
+  \centering\renewcommand{\toksize}{\small}
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    \node[anchor=east] (l) at (0,0) {\tok{The}\,\tok{nurse}};
+    \node[anchor=west] (mk) at (1,0) {\tok[gold]{[MASK]}};
+    \node[anchor=west] (r) at ($(mk.east)+(1,0)$) {\tok{the}\,\tok{laboratory}\,\tok{result}};
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=accent,line width=.7pt]
+      ($(l.south west)+(1,-1)$) -- ($(l.south east)+(-1,-1)$) node[midway,below=2.5mm,note,text=accent] {left context};
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=accent,line width=.7pt]
+      ($(r.south west)+(1,-1)$) -- ($(r.south east)+(-1,-1)$) node[midway,below=2.5mm,note,text=accent] {right context};
+    \node[note,text=gold,above=2mm] at (mk.north) {predict: \textbf{reviewed}};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \begin{itemize}
+    \item Hide a random share of tokens (about 15\% in BERT) anywhere in the text
+    \item Predict each one using the words on \textbf{both} sides
+  \end{itemize}
+  \vspace{3mm}
+  \takeaway{These models \textbf{encode} text into representations for classifying and searching.}
+\end{frame}
+
+\begin{frame}{Same goal, different strengths}
+  \centering
+  \renewcommand{\arraystretch}{1.6}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{28mm} >{\raggedright\arraybackslash}p{49mm} >{\raggedright\arraybackslash}p{49mm}@{}}
+     & \eyebrow{Autoregressive} & \eyebrow{Masked language model}\\\midrule
+    \leavevmode\soft{Hides} & the next token & random tokens anywhere\\
+    \leavevmode\soft{May look at} & earlier tokens only & tokens on both sides\\
+    \leavevmode\soft{Natural use} & \textbf{writing}: answers, summaries, drafts & \textbf{reading}: classifying notes, coding, search embeddings\\
+    \leavevmode\soft{Families} & GPT-style decoders & BERT-style encoders\\
+  \end{tabular}}
+  \vspace{4mm}
+  \takeaway{Both learn what words mean \textbf{in context} from unlabelled text; Part 2 trains one small model each way.}
+\end{frame}
+
+\begin{frame}{Both depend on one operation}
+  \begin{columns}[c,onlytextwidth]
+    \column{.3\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \foreach \r in {0,...,3}{\foreach \c in {0,...,3}{
+          \ifnum\c>\r \node[cell,fill=hair!70,minimum size=6.4mm] at (\c*6.9,-\r*6.9) {};
+          \else \node[cell,fill=good!40,minimum size=6.4mm] at (\c*6.9,-\r*6.9) {};\fi}}
+      \end{tikzpicture}\\[2mm]
+      \textbf{\small Autoregressive}\\{\footnotesize\soft{each position sees the past}}
+    \column{.3\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \foreach \r in {0,...,3}{\foreach \c in {0,...,3}{
+          \node[cell,fill=good!40,minimum size=6.4mm] at (\c*6.9,-\r*6.9) {};}}
+      \end{tikzpicture}\\[2mm]
+      \textbf{\small Masked}\\{\footnotesize\soft{each position sees everything}}
+    \column{.36\textwidth}
+      {\small To predict a hidden token, a position must \textbf{gather information from the positions it is allowed to see}.}\\[4mm]
+      {\small\soft{Row = the predicting position; green = positions it may use.}}
+  \end{columns}
+  \vspace{5mm}
+  \takeaway{That gathering step is \textbf{attention}; the two training styles differ only in which positions are visible.}
+\end{frame}
+
+\begin{frame}{Attention ends in a weighted average}
+  \centering
+  \begin{tikzpicture}[x=.94mm,y=1mm]
+    \node[font=\Large\bfseries,text=accent] at (0,0) {0.75};
+    \node[font=\large,text=muted] at (11,0) {$\times$};
+    \node[stage,minimum width=22mm,font=\normalsize] at (28,0) {$[\,10,\;0\,]$};
+    \node[font=\large,text=muted] at (46,0) {$+$};
+    \node[font=\Large\bfseries,text=gold] at (60,0) {0.25};
+    \node[font=\large,text=muted] at (71,0) {$\times$};
+    \node[stage=gold,minimum width=22mm,font=\normalsize] at (88,0) {$[\,0,\;20\,]$};
+    \node[font=\large,text=muted] at (106,0) {$=$};
+    \node[stage=good,minimum width=26mm,font=\normalsize\bfseries] at (125,0) {$[\,7.5,\;5.0\,]$};
+    \node[note] at (5,-9) {weight}; \node[note] at (28,-9) {value 1};
+    \node[note] at (60,-9) {weight}; \node[note] at (88,-9) {value 2}; \node[note] at (125,-9) {output};
+  \end{tikzpicture}
+  \vspace{8mm}
+  \takeaway{Attention \textbf{blends} the values in proportion to their weights.}
+\end{frame}
+
+\begin{frame}{Three roles: query, key, value}
+  \begin{columns}[T,onlytextwidth]
+    \column{.31\textwidth}\centering
+      \tikz\node[circle,fill=accent!14,draw=accent,line width=.8pt,minimum size=15mm,font=\LARGE\bfseries,text=accent]{Q};\\[3mm]
+      \textbf{Query}\\[1mm]{\small\soft{What this position is looking for.}}
+    \column{.31\textwidth}\centering
+      \tikz\node[circle,fill=gold!16,draw=gold,line width=.8pt,minimum size=15mm,font=\LARGE\bfseries,text=gold]{K};\\[3mm]
+      \textbf{Key}\\[1mm]{\small\soft{How each position can be matched.}}
+    \column{.31\textwidth}\centering
+      \tikz\node[circle,fill=good!14,draw=good,line width=.8pt,minimum size=15mm,font=\LARGE\bfseries,text=good]{V};\\[3mm]
+      \textbf{Value}\\[1mm]{\small\soft{The information each position contributes.}}
+  \end{columns}
+  \vspace{8mm}
+  \takeaway{Queries are compared with keys to get weights, which are then applied to the values.}
+\end{frame}
+
+\begin{frame}{Scaled dot-product attention}
+  \centering
+  {\large $\displaystyle \mathrm{Attention}(Q,K,V)\;=\;\mathrm{softmax}\!\left(\frac{QK^{\mathsf T}}{\sqrt{d_k}}\right)V$}
+  \vspace{8mm}
+
+  \begin{tikzpicture}[node distance=2.6mm,stage/.append style={minimum width=22mm,inner xsep=1.5mm,font=\footnotesize}]
+    \node[stage=accent] (a) {\textbf{Match}\\$QK^{\mathsf T}$};
+    \node[stage=gold,right=of a] (b) {\textbf{Scale}\\$\div\sqrt{d_k}$};
+    \node[stage=warm,right=of b] (m) {\textbf{Mask}\\blocked $\to-\infty$};
+    \node[stage=good,right=of m] (c) {\textbf{Normalise}\\softmax per row};
+    \node[stage=rose,right=of c] (d) {\textbf{Combine}\\weights $\times\,V$};
+    \foreach \x/\y in {a/b,b/m,m/c,c/d} \draw[flow] (\x)--(\y);
+    \node[note,below=2mm of a] {every query\\against every key};
+    \node[note,below=2mm of b] {keep scores\\moderate};
+    \node[note,below=2mm of m] {decide who\\may read whom};
+    \node[note,below=2mm of c] {each row\\sums to 1};
+    \node[note,below=2mm of d] {one output row\\per query};
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Why divide by $\sqrt{d_k}$?}
+  \begin{columns}[c,onlytextwidth]
+    \column{.47\textwidth}\centering
+      \eyebrow{Moderate scores \,\textperiodcentered\, [2, 0]}\\[3mm]
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \fill[accent!75] (0,0) rectangle (44,6); \fill[accent!25] (44,0) rectangle (50,6);
+        \node[font=\small\bfseries,text=white] at (22,3) {0.88}; \node[font=\footnotesize,text=ink] at (56,3) {0.12};
+      \end{tikzpicture}\\[2mm]
+      {\small\soft{Both keys still contribute.}}
+    \column{.47\textwidth}\centering
+      \eyebrow{Extreme scores \,\textperiodcentered\, [8, 0]}\\[3mm]
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \fill[warm!80] (0,0) rectangle (49.98,6); \fill[warm!25] (49.98,0) rectangle (50,6);
+        \node[font=\small\bfseries,text=white] at (25,3) {0.9997}; \node[font=\footnotesize,text=ink] at (58,3) {0.0003};
+      \end{tikzpicture}\\[2mm]
+      {\small\soft{Softmax has collapsed onto one key.}}
+  \end{columns}
+  \vspace{8mm}
+  \takeaway{Dividing by $\sqrt{d_k}$ keeps scores moderate, so attention stays a blend across keys.}
+\end{frame}
+
+\begin{frame}{One row, slowly}
+  \nbtag{Part 2 \S3}
+  \centering
+  \begin{tikzpicture}[x=.9mm,y=1mm]
+    \node[font=\footnotesize\bfseries,text=muted] at (12,17) {SCALED SCORES};
+    \node[cell,fill=accent!40,minimum width=15.5mm,minimum height=9mm] at (4,6) {0.707};
+    \node[cell,fill=accent!8,minimum width=15.5mm,minimum height=9mm] at (22,6) {0.000};
+    \draw[flow] (34,6) -- (46,6) node[midway,above,font=\scriptsize,text=muted]{softmax};
+    \node[font=\footnotesize\bfseries,text=muted] at (67,17) {WEIGHTS};
+    \node[cell,fill=good!50,minimum width=15.5mm,minimum height=9mm] at (58,6) {0.670};
+    \node[cell,fill=good!22,minimum width=15.5mm,minimum height=9mm] at (76,6) {0.330};
+    \draw[flow] (88,6) -- (100,6) node[midway,above,font=\scriptsize,text=muted]{$\times\,V$};
+    \node[font=\footnotesize\bfseries,text=muted] at (121,17) {OUTPUT};
+    \node[cell,fill=rose!30,minimum width=15.5mm,minimum height=9mm] at (112,6) {6.70};
+    \node[cell,fill=rose!30,minimum width=15.5mm,minimum height=9mm] at (130,6) {6.60};
+    \node[note] at (4,-2) {key: clinic}; \node[note] at (22,-2) {key: portal};
+    \node[note,text=ink,font=\small] at (67,-12) {$0.670\times[10,\,0] \;+\; 0.330\times[0,\,20] \;=\; [6.70,\;6.60]$};
+  \end{tikzpicture}
+  \vspace{5mm}
+  \takeaway{\textbf{A value's contribution depends on its weight and its size together.}}
+\end{frame}
+
+\nbexample[.42\textheight]{Part 2 \S3}{Scores, weights, output}{att-hand-example}
+  {Five lines of code produce all three tables, and the notebook checks them against PyTorch's own attention function.}
+
+\begin{frame}{Self-attention and cross-attention}
+  \begin{columns}[c,onlytextwidth]
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}[node distance=3mm,stage/.append style={minimum width=11mm,minimum height=8mm}]
+        \node[stage=muted,minimum width=42mm] (x) {one sequence $X$};
+        \node[stage=gold,below=9mm of x] (k) {K}; \node[stage=accent,left=of k] (q) {Q}; \node[stage=good,right=of k] (v) {V};
+        \foreach \n in {q,k,v} \draw[flow] (x.south -| \n) -- (\n.north);
+      \end{tikzpicture}\\[3mm]
+      \textbf{Self-attention}\\{\small\soft{Q, K and V all come from the same sequence.}}
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}[node distance=3mm,stage/.append style={minimum width=11mm,minimum height=8mm}]
+        \node[stage=muted,minimum width=17mm] (a) {seq.\ A};
+        \node[stage=muted,minimum width=27mm,right=5mm of a] (b) {sequence B};
+        \node[stage=accent,below=9mm of a] (q) {Q};
+        \node[stage=gold,below=9mm of b,xshift=-7mm] (k) {K}; \node[stage=good,right=of k] (v) {V};
+        \draw[flow] (a)--(q); \draw[flow] (b.south -| k)--(k.north); \draw[flow] (b.south -| v)--(v.north);
+      \end{tikzpicture}\\[3mm]
+      \textbf{Cross-attention}\\{\small\soft{Queries from one sequence, keys and values from another.}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Beyond the notebook: attention is blind to word order}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}
+      {\small Same tokens, opposite meaning:}\\[2mm]
+      \tok{result}\,\tok[good]{normal}\,\tok{not}\,\tok[warm]{abnormal}\\[1.5mm]
+      \tok{result}\,\tok[warm]{abnormal}\,\tok{not}\,\tok[good]{normal}\\[4mm]
+      {\small Shuffle the input and the outputs are simply shuffled. Position has to be \textbf{added to the input}.}
+    \column{.46\textwidth}\centering
+      \begin{tikzpicture}[node distance=3mm]
+        \node[stage=muted,minimum width=20mm] (x) {tokens $X$};
+        \node[font=\large,text=muted,right=2mm of x] (p) {$+$};
+        \node[stage=gold,minimum width=20mm,right=2mm of p] (pe) {position};
+        \node[stage=good,minimum width=30mm,below=8mm of p] (o) {Q, K, V};
+        \draw[flow] (x.south) -- ++(0,-3mm) -| ($(o.north)+(-4mm,0)$);
+        \draw[flow] (pe.south) -- ++(0,-3mm) -| ($(o.north)+(4mm,0)$);
+      \end{tikzpicture}
+  \end{columns}
+  \vspace{5mm}
+  \noindent\begin{minipage}[t]{.48\textwidth}\keynumber[warm]{0.00}{output change after a shuffle,\\token content only}\end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}\keynumber[good]{0.89}{output change after a shuffle,\\with positional encoding}\end{minipage}
+\end{frame}
+
+\begin{frame}{A causal mask hides the future}
+  \begin{columns}[c,onlytextwidth]
+    \column{.44\textwidth}\centering
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \foreach \r in {0,...,3}{\foreach \c in {0,...,3}{
+          \ifnum\c>\r \node[cell,fill=hair!70,minimum size=9mm,text=muted] at (\c*9.6,-\r*9.6) {\scriptsize$-\infty$};
+          \else \node[cell,fill=good!40,minimum size=9mm] at (\c*9.6,-\r*9.6) {};\fi}}
+        \node[note,rotate=90] at (-13,-14.4) {query position};
+        \node[note] at (14.4,12) {key position};
+        \foreach \i in {1,...,4}{\node[note] at (\i*9.6-9.6,7) {\i}; \node[note] at (-7.5,-\i*9.6+9.6) {\i};}
+      \end{tikzpicture}
+    \column{.52\textwidth}
+      \begin{itemize}
+        \item A position may use itself and earlier positions
+        \item Later positions are set to $-\infty$ \textbf{before} softmax
+        \item Their weight becomes exactly 0
+      \end{itemize}
+      \vspace{3mm}
+      {\small\soft{First row of the worked example:}}\\[1.5mm]
+      {\small $[\,0.670,\;0.330\,] \;\longrightarrow\; [\,1,\;0\,]$}
+  \end{columns}
+  \vspace{3mm}
+  \takeaway{This is the \textbf{autoregressive} rule, enforced inside attention: each position sees only itself and the past.}
+\end{frame}
+
+\nbexample[.48\textheight]{Part 2 \S4}{Same Q, K and V; only the mask differs}{att-self-vs-causal}
+  {Blocked cells become exactly 0 and every row still sums to 1: the weight moves to the positions that remain visible.}
+
+\begin{frame}{A mask is a table of who may read whom}
+  \centering
+  \renewcommand{\arraystretch}{1.3}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{30mm} >{\raggedright\arraybackslash}p{50mm} >{\raggedright\arraybackslash}p{46mm}@{}}
+    \eyebrow{Pattern} & \eyebrow{Rule for each row} & \eyebrow{Where it is used}\\\midrule
+    \textbf{Bidirectional} & read every token & BERT-style encoders\\
+    \textbf{Causal} & read yourself and earlier tokens & GPT-style decoders, chat\\
+    \textbf{Padding} & nobody reads \code{[PAD]} filler & batches of unequal-length texts\\
+    \textbf{Prefix} & prompt both ways, then causal & encoder--decoder models (T5)\\
+    \textbf{Sliding window} & read only the last $w$ tokens & long-context models\\
+  \end{tabular}}
+  \vspace{3mm}
+  \takeaway{The arithmetic never changes. Model families differ in \textbf{which cells are open}.}
+\end{frame}
+
+\nbexample[.61\textheight]{Part 2 \S5}{Six masks on one sentence}{att-mask-gallery}
+  {Full attention on $n$ tokens costs $n^2$ comparisons; a window of width $w$ costs about $n \times w$.}
+
+\begin{frame}{Each training objective is a mask plus a target}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{Autoregressive}\\[2mm]
+      {\renewcommand{\toksize}{\scriptsize}\soft{\footnotesize input}\;\tok{the}\,\tok{patient}\,\tok{reports}\,\tok{cough}\\[1mm]
+      \soft{\footnotesize target}\;\tok[gold]{patient}\,\tok[gold]{reports}\,\tok[gold]{cough}\,\tok[gold]{so}}\\[3mm]
+      \begin{itemize}\small
+        \item Target: the input shifted by one
+        \item \textbf{Every} position is scored
+        \item Mask: \textbf{causal}, or position $i$ reads its own answer at $i+1$
+      \end{itemize}
+    \column{.47\textwidth}
+      \eyebrow{Masked language model}\\[2mm]
+      {\renewcommand{\toksize}{\scriptsize}\soft{\footnotesize input}\;\tok{the}\,\tok{patient}\,\tok{reports}\,\tok[warm]{[MASK]}\\[1mm]
+      \soft{\footnotesize target}\;\tok[muted]{--}\,\tok[muted]{--}\,\tok[muted]{--}\,\tok[gold]{cough}}\\[3mm]
+      \begin{itemize}\small
+        \item Target: the original token at each \code{[MASK]}
+        \item About \textbf{15\%} of positions are scored
+        \item Mask: \textbf{full}, because clues sit on both sides
+      \end{itemize}
+  \end{columns}
+  \vspace{2mm}
+  \takeaway{``Mask'' has two meanings: the \textbf{attention mask} is a table of permissions; the \code{[MASK]} \textbf{token} is a change to the input.}
+\end{frame}
+
+\nbexample[.58\textheight]{Part 2 \S6}{Both objectives on one sentence}{att-objectives}
+  {AR scores 11 of 11 positions and MLM scores 2 of 12, but the \code{[MASK]} row may read \code{chest xray} to its right.}
+
+\begin{frame}{From an attention row to a prediction}
+  \centering
+  \begin{tikzpicture}[node distance=5mm,stage/.append style={minimum width=33mm,minimum height=13mm}]
+    \node[stage=accent] (a) {\textbf{1. Attend}\\one row of weights};
+    \node[stage=rose,right=of a] (b) {\textbf{2. Combine}\\one output vector};
+    \node[stage=gold,right=of b] (c) {\textbf{3. Predict}\\head $\to$ logits $\to$ softmax};
+    \draw[flow] (a)--(b); \draw[flow] (b)--(c);
+    \node[note,below=2mm of a,text width=34mm] {over the positions the mask allows};
+    \node[note,below=2mm of b,text width=34mm] {weights $\times$ value vectors};
+    \node[note,below=2mm of c,text width=36mm] {one probability per vocabulary word};
+  \end{tikzpicture}
+  \vspace{5mm}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}{\small\textbf{AR:} the output at position $i$ predicts token $i+1$.}
+    \column{.47\textwidth}{\small\textbf{MLM:} the output at a \code{[MASK]} predicts the hidden token.}
+  \end{columns}
+  \vspace{3mm}
+  \takeaway{The \textbf{prediction head} is one linear layer from the output vector to a score for every word in the vocabulary.}
+\end{frame}
+
+\nbexample[.58\textheight]{Part 2 \S8}{One architecture, trained two ways}{att-prediction}
+  {AR cannot know the symptom in advance (0.25 each) yet uses it later to predict the test; MLM reads the test to recover the symptom.}
+
+\begin{frame}{Testing the mask: can the future leak?}
+  \nbtag{Part 2 \S9}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}
+      {\small Edit two \textbf{late} tokens and measure how far the scores at \textbf{earlier} positions move.}\\[3mm]
+      {\renewcommand{\toksize}{\scriptsize}\tok{\ldots}\,\tok{orders}\,\tok{a}\,\tok[warm]{chest}\,\tok[warm]{xray}\,\tok{today}\\[1mm]
+      \tok{\ldots}\,\tok{orders}\,\tok{a}\,\tok[good]{blood}\,\tok[good]{test}\,\tok{today}}\\[4mm]
+      \begin{itemize}\small
+        \item AR: no earlier position can change, by construction
+        \item MLM: earlier positions are \textbf{meant} to change
+      \end{itemize}
+    \column{.22\textwidth}\keynumber[good]{0.0}{largest earlier change,\\AR with causal mask}
+    \column{.22\textwidth}\keynumber[gold]{12.5}{largest earlier change,\\MLM with full mask}
+  \end{columns}
+  \vspace{4mm}
+  \takeaway{An AR model with a non-zero result here has been reading its own answers: the sequence version of \textbf{data leakage}.}
+\end{frame}
+
+\nbexample[.39\textheight]{Part 2 \S10}{The same contrast in pretrained models}{att-pretrained}
+  {The left context is identical in all three panels; DistilBERT's answer moves from \code{pharmacy} to \code{hospital} with the words on the right.}
+
+\nbexample[.58\textheight]{Part 2 \S10}{The masks are visible in real attention maps}{att-pretrained-maps}
+  {distilgpt2 puts exactly 0 above the diagonal; distilbert puts 38\% of its weight there. General-purpose models, not clinical ones.}
+
+% ------------------------------------------------------------------ Part 5
+\notebookslide{Slides only \,\textperiodcentered\, Decoding}{How the next word is chosen}{Why does the same model, asked the same question, give a different answer each time?}
+
+\begin{frame}{The model outputs a score for every token}
+  \begin{columns}[c,onlytextwidth]
+    \column{.62\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ybar,width=86mm,height=52mm,ymin=0,ymax=.7,bar width=5.4mm,
+            symbolic x coords={clinician,nurse,physician,portal,team,system,email,fax},xtick=data,
+            x tick label style={rotate=35,anchor=east,font=\footnotesize},ylabel={Probability},ytick={0,.2,.4,.6},
+            nodes near coords,nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=2}]
+          \addplot[fill=accent!75,draw=none] coordinates {(clinician,.583) (nurse,.194) (physician,.144) (portal,.035)
+            (team,.026) (system,.012) (email,.005) (fax,.001)};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.35\textwidth}
+      {\small\soft{``An urgent result is communicated by the \underline{\hspace{8mm}}''}}\\[5mm]
+      {\small Softmax turns the model's scores into probabilities.}\\[4mm]
+      {\small \textbf{Decoding} picks one, using a rule that you set.}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Temperature reshapes the same scores}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[clean,ybar=1pt,width=128mm,height=46mm,ymin=0,ymax=1.12,bar width=4.6mm,
+        symbolic x coords={clinician,nurse,physician,portal,team,system,email,fax},xtick=data,enlarge x limits=.07,
+        ylabel={Probability},ytick={0,.5,1},area legend,
+        legend style={at={(.5,1.04)},anchor=south,legend columns=3,/tikz/every even column/.append style={column sep=4mm}}]
+      \addplot[fill=navy!85,draw=none] coordinates {(clinician,.995) (nurse,.004) (physician,.001) (portal,0) (team,0) (system,0) (email,0) (fax,0)};
+      \addplot[fill=accent!70,draw=none] coordinates {(clinician,.583) (nurse,.194) (physician,.144) (portal,.035) (team,.026) (system,.012) (email,.005) (fax,.001)};
+      \addplot[fill=gold!85,draw=none] coordinates {(clinician,.355) (nurse,.205) (physician,.176) (portal,.088) (team,.075) (system,.051) (email,.032) (fax,.018)};
+      \legend{$T=0.2$,$T=1.0$,$T=2.0$}
+    \end{axis}
+  \end{tikzpicture}
+  \vspace{1mm}
+  \takeaway{Lower temperature buys \textbf{repeatability}; the model's scores stay the same.}
+\end{frame}
+
+\begin{frame}{Top-k and top-p remove candidates}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{Top-k \,\textperiodcentered\, keep a fixed number}\\[3mm]
+      \begin{tikzpicture}[x=1mm,y=1mm]
+        \foreach \i/\h/\l in {0/22.2/.63,1/7.4/.21,2/5.5/.16}{
+          \fill[accent!75] (\i*7.6,0) rectangle ++(6,\h); \node[font=\scriptsize,text=ink] at (\i*7.6+3,\h+2.2) {\l};}
+        \foreach \i in {3,...,7} {\fill[hair] (\i*7.6,0) rectangle ++(6,.7); \node[font=\scriptsize,text=muted] at (\i*7.6+3,3) {0};}
+        \draw[hair,line width=.6pt] (-1,0) -- (61,0);
+        \node[note,text=ink] at (30,-4.5) {$k=3$: the rest become exactly zero};
+      \end{tikzpicture}
+    \column{.47\textwidth}
+      \eyebrow{Top-p \,\textperiodcentered\, keep enough to reach $p$}\\[3mm]
+      \renewcommand{\arraystretch}{1.5}
+      {\small\begin{tabular}{@{}l c@{}}
+        \soft{Distribution} & \soft{Kept at $p=0.9$}\\\midrule
+        Confident \,{\footnotesize\soft{($T=0.5$)}} & \textbf{2}\\
+        Model's own \,{\footnotesize\soft{($T=1.0$)}} & \textbf{3}\\
+        Uncertain \,{\footnotesize\soft{($T=2.0$)}} & \textbf{6}\\
+      \end{tabular}}
+  \end{columns}
+  \vspace{3mm}
+  \takeaway{Top-k keeps a fixed count; top-p adapts to the model's confidence.}
+\end{frame}
+
+\begin{frame}{Same request, five runs}
+  \centering
+  \begin{tikzpicture}[x=.92mm,y=1mm]
+    \node[font=\small\bfseries,text=navy,anchor=east] at (-4,0) {Greedy \,{\footnotesize\soft{($T\to 0$)}}};
+    \foreach \i in {0,...,4} \node[circle,fill=navy!85,minimum size=9mm] at (\i*14+6,0) {};
+    \node[font=\small,text=ink,anchor=west] at (76,0) {\textbf{1} distinct output};
+    \node[font=\small\bfseries,text=navy,anchor=east] at (-4,-15) {Sampling \,{\footnotesize\soft{($T=1.0$)}}};
+    \foreach \i/\c in {0/accent,1/gold,2/good,3/warm,4/rose} \node[circle,fill=\c!85,minimum size=9mm] at (\i*14+6,-15) {};
+    \node[font=\small,text=ink,anchor=west] at (76,-15) {\textbf{5} distinct outputs};
+  \end{tikzpicture}
+  \vspace{8mm}
+  \takeaway{Different summaries of the same note come from \textbf{sampling}, so judge each against the source text.}
+\end{frame}
+
+\begin{frame}{Choosing settings for health work}
+  \centering
+  \renewcommand{\arraystretch}{1.5}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{48mm} >{\raggedright\arraybackslash}p{37mm} >{\raggedright\arraybackslash}p{44mm}@{}}
+    \eyebrow{Task} & \eyebrow{Start from} & \eyebrow{Because}\\\midrule
+    Extracting a value & $T=0$ & one right answer, every run\\
+    Answering from retrieved policy & $T=0$ to $0.3$ & wording follows the evidence\\
+    Drafting text a person will edit & $T\approx0.7$,\; top-p $0.9$ & every output gets reviewed\\
+    Anything that will be audited & $T=0$, version pinned & must be reproducible\\
+  \end{tabular}}
+  \vspace{3mm}
+  \takeaway{Decoding chooses among what the model already has; new evidence enters through retrieval.}
+\end{frame}
+
+% ------------------------------------------------------------------ Part 6
+\notebookslide{Part 3 \,\textperiodcentered\, Retrieval-augmented generation}{Getting evidence in}{What changes when the same model receives retrieved evidence --- and how do we check what it did with it?}
+
+\begin{frame}{The RAG pipeline}
+  \centering
+  \begin{tikzpicture}[node distance=3.4mm,stage/.append style={minimum width=19mm,inner xsep=1.5mm,font=\footnotesize}]
+    \node[stage=sky] (a) {Documents};
+    \node[stage=sky,right=of a] (b) {Chunks +\\metadata};
+    \node[stage=gold,right=of b] (c) {Embedding\\vectors};
+    \node[stage=good,right=of c] (d) {Top-k\\retrieval};
+    \node[stage=good,right=of d] (e) {Grounded\\prompt};
+    \node[stage=rose,right=of e] (f) {Generated\\response};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f} \draw[flow] (\x)--(\y);
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=muted,line width=.6pt] ($(a.south west)+(0,-2.5mm)$) -- ($(d.south east)+(0,-2.5mm)$)
+      node[midway,below=3mm,note] {retrieval \textbf{ranks} existing text};
+    \draw[decorate,decoration={brace,amplitude=4pt,mirror},color=muted,line width=.6pt] ($(e.south west)+(0,-2.5mm)$) -- ($(f.south east)+(0,-2.5mm)$)
+      node[midway,below=3mm,note] {generation \textbf{writes}};
+  \end{tikzpicture}
+  \vspace{6mm}
+  \takeaway{RAG changes what is in the prompt; the model's weights stay the same.}
+\end{frame}
+
+\begin{frame}{Same model, two conditions}
+  \centering
+  \begin{tikzpicture}[node distance=6mm]
+    \node[stage=muted,minimum width=24mm] (q1) {Question};
+    \node[stage=navy,minimum width=24mm,right=36mm of q1] (m1) {Model};
+    \node[stage=muted,minimum width=28mm,right=of m1] (r1) {General answer};
+    \draw[flow] (q1)--(m1); \draw[flow] (m1)--(r1);
+    \node[font=\footnotesize\bfseries,text=muted,anchor=east,left=3mm of q1] {DIRECT};
+    \node[stage=muted,minimum width=24mm,below=13mm of q1] (q2) {Question};
+    \node[stage=good,minimum width=24mm,right=3mm of q2] (c2) {+ top-k chunks};
+    \node[stage=navy,minimum width=24mm] (m2) at (m1 |- q2) {Model};
+    \node[stage=good,minimum width=28mm,right=of m2] (r2) {Cited answer\\or abstention};
+    \draw[flow] (c2)--(m2); \draw[flow] (m2)--(r2);
+    \node[font=\footnotesize\bfseries,text=good,anchor=east,left=3mm of q2] {RAG};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \takeaway{RAG adds three rules: \textbf{use only the context, cite the chunk, abstain if the answer is absent.}}
+\end{frame}
+
+\begin{frame}{Chunking decides what can be retrieved}
+  \nbtag{Part 3 \S3b}
+  \centering
+  \begin{tikzpicture}[x=.88mm,y=1mm]
+    \node[font=\small\bfseries,text=navy,anchor=east] at (-3,3) {By heading};
+    \fill[accent!45] (0,0) rectangle (40,6); \fill[good!45] (41,0) rectangle (84,6); \fill[gold!60] (85,0) rectangle (116,6);
+    \node[font=\scriptsize,text=ink] at (20,3) {Portal registration};
+    \node[font=\scriptsize,text=ink] at (62.5,3) {Appointment changes};
+    \node[font=\scriptsize,text=ink] at (100.5,3) {Accessibility};
+    \node[font=\small\bfseries,text=navy,anchor=east] at (-3,-13) {Fixed window};
+    \fill[accent!45] (0,-16) rectangle (40,-10); \fill[good!45] (41,-16) rectangle (84,-10); \fill[gold!60] (85,-16) rectangle (116,-10);
+    \foreach \a/\b/\y in {0/50/-19,37/87/-23,74/116/-27}
+      \draw[navy,line width=1.3pt,|-|] (\a,\y) -- (\b,\y);
+    \node[note,anchor=west] at (52,-19) {window 1};
+    \node[note,anchor=east] at (35,-23) {window 2 starts mid-sentence};
+    \node[note,anchor=east] at (72,-27) {window 3};
+  \end{tikzpicture}
+  \vspace{4mm}
+  \takeaway{\textbf{Test chunking strategies on your own questions.}}
+\end{frame}
+
+\nbexample[.54\textheight]{Part 3 \S3}{Nine chunks, one per heading}{rag-chunks}
+  {Each chunk has a \textbf{stable ID}; every retrieval score, citation and audit later in the notebook refers to these nine IDs.}
+
+\begin{frame}{Four questions, four behaviours to test}
+  \nbtag{Part 3 \S4}
+  \centering
+  \renewcommand{\arraystretch}{1.65}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{26mm} >{\raggedright\arraybackslash}p{70mm} >{\raggedright\arraybackslash}p{33mm}@{}}
+    \eyebrow{Case} & \eyebrow{Question} & \eyebrow{A good system \ldots}\\\midrule
+    \leavevmode{\color{good}\bfseries Single chunk} & How long is a registration code valid? & cites one passage\\
+    \leavevmode{\color{accent}\bfseries Multi chunk} & Who sends urgent results? Who interprets? & combines two\\
+    \leavevmode{\color{gold}\bfseries Unanswerable} & What parking fee does the clinic charge? & says it is absent\\
+    \leavevmode{\color{warm}\bfseries Partial evidence} & Can a parent see a teenager's results? & names the gap\\
+  \end{tabular}}
+  \vspace{3mm}
+  \takeaway{\textbf{Relevant but incomplete} evidence invites the model to fill the gap.}
+\end{frame}
+
+\begin{frame}{Two ways to score a passage}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{Lexical \,\textperiodcentered\, shared words}\\[2mm]
+      $\displaystyle \frac{|\,\text{query words} \cap \text{chunk words}\,|}{|\,\text{query words} \cup \text{chunk words}\,|}$\\[3mm]
+      \begin{itemize}\small
+        \item Every score can be explained by pointing at words
+        \item Free, local and instant
+        \item \code{bloodwork} and \code{laboratory result} share nothing
+      \end{itemize}
+    \column{.47\textwidth}
+      \eyebrow{Embedding \,\textperiodcentered\, similar meaning}\\[2mm]
+      $\displaystyle \cos\theta \;=\; \frac{\mathbf q\cdot\mathbf c}{\lVert\mathbf q\rVert\,\lVert\mathbf c\rVert}$\\[3mm]
+      \begin{itemize}\small
+        \item Matches paraphrases and synonyms
+        \item Needs an embedding model, often a paid service
+        \item The score is a ranking signal with no stated reason
+      \end{itemize}
+  \end{columns}
+  \vspace{2mm}
+  \takeaway{The notebook starts with the transparent method so that every retrieval decision can be inspected, then adds embeddings.}
+\end{frame}
+
+\nbexample[.56\textheight]{Part 3 \S7}{Every question against every chunk}{rag-lexical-scores}
+  {The unanswerable row is all zeros, and top-k would still return four chunks. The partial question's expected chunk scores 0.042, below three off-topic ones.}
+
+\begin{frame}{Top-k always returns k}
+  \nbtag{Part 3 \S11}
+  \begin{columns}[c,onlytextwidth]
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ybar,width=68mm,height=42mm,ymin=0,ymax=.85,bar width=7mm,xtick={1,2,3,4},
+            xlabel={Rank},ylabel={Cosine similarity},ytick={0,.4,.8},enlarge x limits=.18,nodes near coords,
+            nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=2},
+            title={\footnotesize\bfseries Registration code \,{\color{good}(answer exists)}},title style={text=navy}]
+          \addplot[fill=good!70,draw=none] coordinates {(1,.668) (2,.441) (3,.378) (4,.372)};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.47\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[clean,ybar,width=68mm,height=42mm,ymin=0,ymax=.85,bar width=7mm,xtick={1,2,3,4},
+            xlabel={Rank},ytick={0,.4,.8},enlarge x limits=.18,nodes near coords,
+            nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,precision=2},
+            title={\footnotesize\bfseries Parking fee \,{\color{warm}(answer absent)}},title style={text=navy}]
+          \addplot[fill=warm!65,draw=none] coordinates {(1,.341) (2,.318) (3,.296) (4,.210)};
+        \end{axis}
+      \end{tikzpicture}
+  \end{columns}
+  \vspace{1mm}
+  \takeaway{Top-k means \textbf{highest ranked}; relevance is a separate check.}
+\end{frame}
+
+\begin{frame}{A terminology connects patient words to document words}
+  \nbtag{Part 3 \S8}
+  \centering
+  \begin{tikzpicture}[node distance=5mm]
+    \node[stage=muted,text width=35mm] (q) {\footnotesize\soft{patient asks}\\``Who tells me about my \textbf{bloodwork}?''};
+    \node[stage=gold,text width=35mm,right=of q] (c) {\footnotesize\soft{concept NC-00412}\\\textbf{laboratory result}\\[-.5mm]{\scriptsize lab result \,\textperiodcentered\, bloodwork \,\textperiodcentered\, labs}};
+    \node[stage=good,text width=35mm,right=of c] (e) {\footnotesize\soft{expanded query}\\\ldots\ bloodwork \textbf{+ laboratory result}};
+    \draw[flow] (q)--(c); \draw[flow] (c)--(e);
+  \end{tikzpicture}
+  \vspace{4mm}
+
+  \renewcommand{\arraystretch}{1.35}
+  {\small\begin{tabular}{@{}l c c@{}}
+    \eyebrow{Chunk} & \eyebrow{Score before} & \eyebrow{Score after}\\\midrule
+    Routine results & 0.000 & \textbf{0.125}\\
+    Questions about results & 0.037 & \textbf{0.107}\\
+    Urgent results & 0.000 & \textbf{0.038}\\
+  \end{tabular}}
+  \vspace{3mm}
+  \takeaway{A terminology states explicitly that two phrases name one concept. {\footnotesize\soft{Codes here are fictional; real systems use SNOMED CT, LOINC or ICD-10.}}}
+\end{frame}
+
+\begin{frame}{A knowledge graph adds relationships --- and provenance}
+  \nbtag{Part 3 \S9}
+  \centering
+  \begin{tikzpicture}[x=.9mm,y=1mm]
+    \node[kn=gold] (lab) at (0,0) {laboratory result};
+    \node[kn] (urg) at (47,14) {urgent lab result};
+    \node[kn] (int) at (47,0) {interpretation question};
+    \node[kn] (por) at (47,-14) {patient portal};
+    \node[kn=good] (cli) at (110,14) {designated clinician};
+    \node[kn=good] (ord) at (110,0) {ordering team};
+    \node[kn=warm] (reg) at (110,-14) {code expires in 48 h};
+    \draw[flow] (lab) -- (urg); \draw[flow] (lab) -- (int); \draw[flow] (lab) -- (por);
+    \draw[flow] (urg) -- node[el,above=.5mm]{communicated by} (cli);
+    \draw[flow] (int) -- node[el,above=.5mm]{routed to} (ord);
+    \draw[flow] (por) -- node[el,above=.5mm]{registration} (reg);
+    \node[font=\scriptsize\ttfamily,text=good,below=.3mm of cli] {results\_policy::001};
+    \node[font=\scriptsize\ttfamily,text=good,below=.3mm of ord] {results\_policy::002};
+    \node[font=\scriptsize\ttfamily,text=warm,below=.3mm of reg] {access\_guide::000 \,--\, off topic};
+    \node[font=\scriptsize\bfseries,text=accent] at (47,23) {ONE HOP};
+    \node[font=\scriptsize\bfseries,text=muted] at (110,23) {TWO HOPS};
+  \end{tikzpicture}
+  \takeaway{Every edge carries its source chunk, so a reviewer can trace why a passage was shown.}
+\end{frame}
+
+\begin{frame}{What the evidence changed}
+  \nbtag{Part 3 \S11}
+  \begin{columns}[T,onlytextwidth]
+    \column{.485\textwidth}
+      \begin{tcolorbox}[enhanced,boxrule=0pt,frame hidden,sharp corners,colback=hair!45,borderline north={2.2pt}{0pt}{muted},
+          left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,fontupper=\small,equal height group=cmp]
+        \eyebrow{Direct \,\textperiodcentered\, question only}\\[2mm]
+        ``\ldots registration codes might remain valid for anywhere from a few hours to several days.
+        Without details about the particular portal, it's uncertain\ldots''\\[2mm]
+        {\footnotesize\soft{169 tokens}}
+      \end{tcolorbox}
+    \column{.485\textwidth}
+      \begin{tcolorbox}[enhanced,boxrule=0pt,frame hidden,sharp corners,colback=good!9,borderline north={2.2pt}{0pt}{good},
+          left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,fontupper=\small,equal height group=cmp]
+        \eyebrow{RAG \,\textperiodcentered\, retrieved context}\\[2mm]
+        ``A portal registration code remains valid for \textbf{48 hours}. \code{[access\_guide::000]}''\\[2mm]
+        {\footnotesize\soft{312 tokens}}
+      \end{tcolorbox}
+  \end{columns}
+  \vspace{.5mm}
+  {\scriptsize\soft{Recorded \code{gpt-4.1-mini} responses, 19 Sept 2026. Q1: ``How long does a portal registration code remain valid?''}}
+  \takeaway{Retrieved evidence made the answer specific and traceable, at about twice the token cost.}
+\end{frame}
+
+\begin{frame}{Evaluate in two gates}
+  \nbtag{Part 3 \S12}
+  \centering
+  \begin{tikzpicture}[node distance=7mm]
+    \node[stage=good,text width=50mm,minimum height=20mm] (r) {\textbf{1 \,\textperiodcentered\, Retrieval gate}\\[1mm]{\footnotesize Did the retrieved set contain every chunk the answer needs?}};
+    \node[stage=rose,text width=50mm,minimum height=20mm,right=14mm of r] (g) {\textbf{2 \,\textperiodcentered\, Generation gate}\\[1mm]{\footnotesize Does the answer cite only retrieved chunks, and abstain when evidence is missing?}};
+    \draw[flow] (r)--(g);
+    \node[note,below=3mm of r] {fails $\rightarrow$ fix chunking, top-k, query};
+    \node[note,below=3mm of g] {fails $\rightarrow$ fix the prompt, check the model};
+  \end{tikzpicture}
+  \vspace{7mm}
+  \takeaway{A correct chunk with an invented fee is a \textbf{generation} failure.}
+\end{frame}
+
+\begin{frame}{A citation is a pointer for a human check}
+  \nbtag{Part 3 \S13}
+  \centering
+  \renewcommand{\arraystretch}{1.55}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{66mm} >{\raggedright\arraybackslash}p{42mm} >{\raggedright\arraybackslash}p{22mm}@{}}
+    \eyebrow{Hand-written answer} & \eyebrow{What is wrong} & \eyebrow{Auto check}\\\midrule
+    ``\ldots 48 hours. \code{[access\_guide::000]}'' & correct & \leavevmode{\color{good}pass}\\
+    ``\ldots and a \textbf{\$15 fee}. \code{[access\_guide::000]}'' & fee is invented & \leavevmode{\color{warm}\bfseries pass}\\
+    ``\ldots 48 hours. \code{[privacy\_policy::000]}'' & cites the wrong chunk & \leavevmode{\color{warm}\bfseries pass}\\
+    ``Yes\ldots\ \textbf{aged 14 and older}, withhold\ldots'' & policy is invented & \leavevmode{\color{warm}\bfseries pass}\\
+    ``\ldots 72 hours. \code{[access\_guide::007]}'' & chunk ID is fabricated & \leavevmode{\color{good}\bfseries flagged}\\
+  \end{tabular}}
+  \vspace{4mm}
+  \takeaway{The checker verifies the citation label; a person verifies the claim.}
+\end{frame}
+
+\begin{frame}{The partial-evidence trap}
+  \nbtag{Part 3 \S13}
+  \centering
+  \begin{tikzpicture}[node distance=5mm]
+    \node[stage=muted,text width=36mm] (q) {\footnotesize\soft{question}\\Can a parent see a teenager's results?};
+    \node[stage=good,text width=36mm,right=of q] (c) {\footnotesize\soft{retrieved \,\textperiodcentered\, relevant}\\Proxy access requires documented consent.};
+    \node[stage=warm,text width=36mm,right=of c] (a) {\footnotesize\soft{generated \,\textperiodcentered\, invented}\\``For patients aged 14 and older, withhold\ldots''};
+    \draw[flow] (q)--(c); \draw[flow] (c)--(a);
+    \node[note,below=3mm of c] {The corpus is silent on minors,\\ages and sensitive results.};
+  \end{tikzpicture}
+  \vspace{6mm}
+  \takeaway{The safe answer covers the supported part and \textbf{names the gap}.}
+\end{frame}
+
+\begin{frame}{From notebook to chat interface}
+  \begin{columns}[c,onlytextwidth]
+    \column{.5\textwidth}
+      \begin{itemize}\small
+        \item \textbf{Streamlit} turns a Python script into a web page
+        \item The script \textbf{reruns top to bottom} on every interaction
+        \item \code{st.session\_state} keeps the conversation
+        \item \code{@st.cache\_data} keeps the corpus and embeddings
+        \item \code{st.chat\_input} and \code{st.chat\_message} draw the chat box
+      \end{itemize}
+    \column{.46\textwidth}\centering
+      \begin{tikzpicture}[node distance=2.4mm,stage/.append style={minimum width=50mm,minimum height=7mm,font=\footnotesize}]
+        \node[stage=muted] (n) {notebook: \code{\%\%writefile rag\_chat\_app.py}};
+        \node[stage=navy,below=of n] (s) {\code{streamlit run} on \code{localhost}};
+        \node[stage=good,below=of s] (r) {\code{retrieve()} \,\textperiodcentered\, same functions as \S6--\S8};
+        \node[stage=rose,below=of r] (g) {\code{generate()} \,\textperiodcentered\, only with an API key};
+        \node[stage=gold,below=of g] (e) {reply + evidence panel};
+        \foreach \x/\y in {n/s,s/r,r/g,g/e} \draw[flow] (\x)--(\y);
+      \end{tikzpicture}
+  \end{columns}
+  \takeaway{The interface adds no intelligence. It gives someone else a way to use what you built.}
+\end{frame}
+
+\begin{frame}{The chat app, asked a patient's question}
+  \nbtag{Part 3 \S14}
+  \begin{columns}[T,onlytextwidth]
+    \column{.56\textwidth}
+      \begin{examplebox}{retrieval-only mode, no key, no cost}
+        \textbf{You}\quad Who tells me about my bloodwork if something is wrong?\\[1.5mm]
+        \textbf{App}\quad No model was called. The best-matching passage is \textbf{[results\_policy::000]} (Routine results).\\[1.5mm]
+        {\footnotesize\soft{Terminology added: \textbf{laboratory result results}}}
+      \end{examplebox}
+    \column{.4\textwidth}
+      \eyebrow{Evidence panel}\\[1mm]
+      {\footnotesize\renewcommand{\arraystretch}{1.25}\begin{tabular}{@{}cll@{}}
+        \# & chunk & score\\\midrule
+        1 & \code{results\_policy::000} & 0.125\\
+        2 & \code{results\_policy::002} & 0.107\\
+        3 & \code{results\_policy::001} & 0.038\\
+        4 & \code{access\_guide::000} & 0.000\\
+      \end{tabular}}\\[3mm]
+      {\footnotesize\soft{Tested with \code{AppTest}; runs on \code{localhost:8501}.}}
+  \end{columns}
+  \takeaway{Rank 4 scored 0.000 and was still shown. A chat box looks finished, so \textbf{put the limits on the screen}.}
+\end{frame}
+
+\begin{frame}{Limits to carry forward}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \begin{itemize}
+        \item Nearest neighbours still need a relevance check
+        \item Retrieved sources can be incomplete or wrong
+        \item A cited answer still needs its claim checked
+      \end{itemize}
+    \column{.47\textwidth}
+      \begin{itemize}
+        \item The terminology and graph are tiny, fictional and hand-built
+        \item Replayed responses are one run on one date
+        \item Live services add cost, privacy and retention questions
+      \end{itemize}
+  \end{columns}
+  \vspace{8mm}
+  \takeaway{Treat retrieved text as \textbf{data to check}.}
+\end{frame}
+
+\begin{frame}{Your turn: Lab 2}
+  \centering
+  \begin{tikzpicture}[node distance=3mm,stage/.append style={minimum width=24.5mm,minimum height=12mm,inner xsep=1mm,font=\footnotesize},
+      note/.append style={font=\scriptsize,text width=25mm}]
+    \node[stage=sky] (a) {\textbf{1}\\Know the corpus};
+    \node[stage=good,right=of a] (b) {\textbf{2}\\Design retrieval};
+    \node[stage=rose,right=of b] (c) {\textbf{3}\\Build the chatbot};
+    \node[stage=gold,right=of c] (d) {\textbf{4}\\Evaluate it};
+    \node[stage=navy,right=of d] (e) {\textbf{5}\\Plan production};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e} \draw[flow] (\x)--(\y);
+    \node[note,below=2.5mm of a] {what it can and cannot answer};
+    \node[note,below=2.5mm of b] {compare two configurations};
+    \node[note,below=2.5mm of c] {cite, abstain, show evidence};
+    \node[note,below=2.5mm of d] {two gates and a hand audit};
+    \node[note,below=2.5mm of e] {brainstorm with AI, then judge};
+  \end{tikzpicture}
+  \vspace{5mm}
+
+  {\small Every step has a model in \textbf{Part 3}. Add an \textbf{AI use record} and a \textbf{one-page reflection}.}
+  \vspace{3mm}
+  \takeaway{Write your test questions \textbf{before} you tune the system, including ones the corpus cannot answer.}
+\end{frame}
+
+
+% ---------------------------------------------------------------- closing
+\begin{frame}{Seven things to keep}
+  \begin{columns}[T,onlytextwidth]
+    \column{.47\textwidth}
+      \eyebrow{Tutorial 1}\\[2mm]
+      \begin{enumerate}\setlength{\itemsep}{5pt}
+        \item Compare with a \textbf{baseline} before anything else.
+        \item Every step that learns goes \textbf{inside the pipeline}.
+        \item A surprisingly good result means: \textbf{look for leakage}.
+      \end{enumerate}
+    \column{.47\textwidth}
+      \eyebrow{Tutorial 2}\\[2mm]
+      \begin{enumerate}\setcounter{enumi}{3}\setlength{\itemsep}{5pt}
+        \item Clinical text is \textbf{expensive in tokens}.
+        \item The \textbf{mask} decides what a model may read.
+        \item Temperature 0 buys \textbf{repeatability}.
+        \item A person still has to \textbf{check each cited claim}.
+      \end{enumerate}
+  \end{columns}
+\end{frame}
