@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1790030754.24933 "lab2-slides.tex" "build/lab2-slides.pdf" "lab2-slides" 1790030764.10369 0
+["pdflatex"] 1791478587.12409 "lab2-slides.tex" "build/lab2-slides.pdf" "lab2-slides" 1791478599.08472 0
   "/etc/texmf/web2c/texmf.cnf" 1778127492.23941 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/fira/fir_337jzs.enc" 1570828436 2952 6101deaf2e29800c3f438cc30978a854 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/fira/fir_d4q673.enc" 1570828436 2978 6d777d1174162fa94ff58f36782f4570 ""
@@ -374,9 +374,9 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1778712470.55386 5472669 54eaf61a88b6b7896ebd0dac973cb29c ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1778712497 8214828 7776e509c51a1827d975367510e6b006 ""
-  "build/lab2-slides.aux" 1790030763.86648 15329 8147145a9315accc52f433142756a2a3 "pdflatex"
-  "build/lab2-slides.nav" 1790030763.8684 9586 4d1f2292ec279ee0b20e045b5feeb25c "pdflatex"
-  "build/lab2-slides.out" 1790030755.36941 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
+  "build/lab2-slides.aux" 1791478598.81863 16134 90909047e8d92d4926a84d6e28eb8f5a "pdflatex"
+  "build/lab2-slides.nav" 1791478598.8205 10076 118e66aa2b11d750ec173e451b6b870d "pdflatex"
+  "build/lab2-slides.out" 1791478588.27001 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
   "figures/att-hand-example.png" 1790025720.93831 56449 3248af12fc6ddf8d182289fe407d3821 ""
   "figures/att-mask-gallery.png" 1790025720.94612 75920 ee8cae02d43944caecb7db7c51eacac7 ""
   "figures/att-objectives.png" 1790025720.95008 71053 ee77a2bc2f5946d80ca3f655bb052984 ""
@@ -391,11 +391,11 @@
   "figures/rag-lexical-scores.png" 1790025720.96849 77267 40ff6002acb8319723a161d2f4300ecc ""
   "figures/w2v-similarity.png" 1790025720.93214 62314 88e94b689c567a826666141693af8ff9 ""
   "figures/w2v-tsne.png" 1790025720.93335 51212 c81f028126baa22f67cde4a2a1aadf30 ""
-  "hlth667m.sty" 1790025857.21706 6911 0b380041830b4e6931f74d74cd45bddd ""
+  "hlth667m.sty" 1791478062.46214 7376 efd8f6791ca2821fbae2e58e41fd7a52 ""
   "lab2-slides.tex" 1789943068.6685 1234 658378f3eb426a815bb970ca550a3f1b ""
   "part0-opening.tex" 1790025857.21697 2245 1a59e379d7c77dd4e1451a0ec18ae613 ""
   "part1-ml.tex" 1790030435.90667 29589 6b52b185f055bf4954d33c14cae119fc ""
-  "part2-genai.tex" 1790030481.40728 59281 99bbfb435d13e00dae5297a9b3785d62 ""
+  "part2-genai.tex" 1791478587.0008 67485 63cf83915dca5fe8bc4456bb7bef164e ""
   (generated)
   "build/lab2-slides.aux"
   "build/lab2-slides.log"

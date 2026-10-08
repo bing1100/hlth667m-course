@@ -860,6 +860,123 @@
   \takeaway{Every edge carries its source chunk, so a reviewer can trace why a passage was shown.}
 \end{frame}
 
+% GraphRAG: concept slides go beyond the notebook; comparison numbers come from
+% Han et al., "RAG vs. GraphRAG: A Systematic Evaluation and Key Insights", arXiv:2502.11371 (v3).
+\begin{frame}{Beyond the notebook: GraphRAG builds the graph with an LLM}
+  \centering
+  \begin{tikzpicture}[node distance=3.5mm,stage/.append style={minimum width=23mm,minimum height=9mm,inner xsep=1.2mm,font=\footnotesize}]
+    \node[font=\scriptsize\bfseries,text=muted,anchor=south west] at (0,0) {RAG \,\textperiodcentered\, INDEX THE PASSAGES};
+    \node[stage=sky,anchor=north west] (r1) at (0,-.5mm) {Chunks};
+    \node[stage=gold,right=of r1] (r2) {Embedding\\vectors};
+    \node[stage=good,right=of r2] (r3) {Top-k similar\\chunks};
+    \draw[flow] (r1)--(r2); \draw[flow] (r2)--(r3);
+    \node[font=\scriptsize\bfseries,text=muted,anchor=south west] at (0,-14mm) {GRAPHRAG \,\textperiodcentered\, INDEX THE RELATIONSHIPS};
+    \node[stage=sky,anchor=north west] (g1) at (0,-14.5mm) {Chunks};
+    \node[stage=rose,right=of g1] (g2) {LLM extracts\\entities + relations};
+    \node[stage=gold,right=of g2] (g3) {Knowledge graph\\{\scriptsize each edge keeps its chunk}};
+    \node[stage=gold,right=of g3] (g4) {Communities +\\LLM summaries};
+    \draw[flow] (g1)--(g2); \draw[flow] (g2)--(g3); \draw[flow] (g3)--(g4);
+    \node[stage=good,inner xsep=3mm,anchor=north east] (glo) at ($(g4.south east)+(0,-5mm)$)
+      {\textbf{Global search}\\{\scriptsize match the question to community summaries}};
+    \node[stage=good,inner xsep=3mm,anchor=north east] (loc) at ($(glo.north west)+(-4mm,0)$)
+      {\textbf{Local search}\\{\scriptsize find the question's entities, follow edges}};
+    \draw[flow] (g3.south) -- ++(0,-2.5mm) -| (loc.north);
+    \draw[flow] (g4.south) -- ++(0,-2.5mm) -| (glo.north);
+  \end{tikzpicture}
+  \vspace{2mm}
+  \takeaway{GraphRAG has an LLM read every chunk \textbf{before the first question}, so retrieval can follow links between chunks.}
+\end{frame}
+
+\begin{frame}{GraphRAG is a family of designs}
+  \centering
+  \renewcommand{\arraystretch}{1.25}\setlength{\tabcolsep}{4pt}
+  {\small\begin{tabular}{@{}>{\raggedright\arraybackslash}p{32mm} >{\raggedright\arraybackslash}p{40mm} >{\raggedright\arraybackslash}p{58mm}@{}}
+    \eyebrow{Design} & \eyebrow{What is built} & \eyebrow{What reaches the prompt}\\\midrule
+    \leavevmode{\color{accent}\bfseries KG-based}\newline{\footnotesize\soft{e.g.\ LlamaIndex}} & entity--relation triples & triples, with or without their source text\\
+    \leavevmode{\color{gold}\bfseries Community-based}\newline{\footnotesize\soft{e.g.\ Microsoft GraphRAG}} & graph split into communities, each summarised & local: entities and nearby summaries\newline global: top-level summaries\\
+    \leavevmode{\color{good}\bfseries Graph-guided text}\newline{\footnotesize\soft{e.g.\ HippoRAG 2}} & entity graph linking chunks & original chunks, chosen through entities\\
+    \leavevmode{\color{rose}\bfseries Summary tree}\newline{\footnotesize\soft{e.g.\ RAPTOR}} & chunks clustered and summarised level by level & chunks and summaries at several levels\\
+  \end{tabular}}
+  \vspace{2mm}
+  \takeaway{Original text keeps the \textbf{details}; triples and summaries keep the \textbf{connections}.}
+\end{frame}
+
+\begin{frame}{RAG or GraphRAG? It depends on the question}
+  \papertag{Han et al., arXiv:2502.11371}
+  \begin{columns}[c,onlytextwidth]
+    \column{.64\textwidth}\centering
+      \begin{tikzpicture}
+        \begin{axis}[cleanx,xbar=.6pt,width=78mm,height=47mm,xmin=0,xmax=113,bar width=2.7mm,
+            y dir=reverse,ytick={1,...,5},enlarge y limits=.12,xtick={0,50,100},
+            yticklabel style={align=right,font=\footnotesize},
+            yticklabels={{Single fact\\[-.5mm]{\scriptsize\color{muted}NQ}},{Multi-hop\\[-.5mm]{\scriptsize\color{muted}HotpotQA}},
+              {Compare facts\\[-.5mm]{\scriptsize\color{muted}MultiHop-RAG}},{Order in time\\[-.5mm]{\scriptsize\color{muted}MultiHop-RAG}},
+              {Answer absent\\[-.5mm]{\scriptsize\color{muted}MultiHop-RAG}}},
+            nodes near coords,nodes near coords style={font=\scriptsize,/pgf/number format/.cd,fixed,fixed zerofill,precision=1},
+            ]
+          \addplot[fill=gold!85,draw=none] coordinates {(63.0,1) (61.7,2) (60.6,3) (50.6,4) (80.1,5)};
+          \addplot[fill=accent!75,draw=none] coordinates {(64.8,1) (60.0,2) (57.6,3) (30.7,4) (96.0,5)};
+        \end{axis}
+      \end{tikzpicture}
+    \column{.33\textwidth}
+      {\small{\color{accent}\rule{2.4mm}{2.4mm}}\, \textbf{RAG} passes original passages, so \textbf{details} survive.}\\[3mm]
+      {\small{\color{gold}\rule{2.4mm}{2.4mm}}\, \textbf{GraphRAG} passes entities, relations and summaries, so \textbf{links} survive.}\\[3mm]
+      {\small\color{warm}Global search abstained correctly on only \textbf{19\%} of no-answer questions.}
+  \end{columns}
+  {\scriptsize\soft{\% F1 (NQ, HotpotQA) or accuracy (MultiHop-RAG). Llama 3.1-8B. GraphRAG: community graph, local search.}}
+  \takeaway{RAG leads on single facts and on abstaining. GraphRAG leads when an answer has to \textbf{link several documents}.}
+\end{frame}
+
+\begin{frame}{They get different questions right}
+  \papertag{Han et al., arXiv:2502.11371}
+  \begin{columns}[T,onlytextwidth]
+    \column{.44\textwidth}
+      \eyebrow{MultiHop-RAG \,\textperiodcentered\, Llama 3.1-8B}\\[3mm]
+      \begin{tikzpicture}[x=1mm,y=1mm,mc/.style={minimum width=21mm,minimum height=12.5mm,align=center,text=ink}]
+        \node[mc,fill=hair!70] at (0,0) {{\large\bfseries 55.4\%}\\[-.5mm]{\scriptsize\soft{both right}}};
+        \node[mc,fill=accent!22] at (22,0) {{\large\bfseries 11.6\%}\\[-.5mm]{\scriptsize RAG only}};
+        \node[mc,fill=gold!32] at (0,-13.5) {{\large\bfseries 13.6\%}\\[-.5mm]{\scriptsize GraphRAG only}};
+        \node[mc,fill=hair!70] at (22,-13.5) {{\large\bfseries 19.4\%}\\[-.5mm]{\scriptsize\soft{both wrong}}};
+        \node[font=\scriptsize\bfseries,text=muted,align=center] at (0,10) {GraphRAG\\right};
+        \node[font=\scriptsize\bfseries,text=muted,align=center] at (22,10) {GraphRAG\\wrong};
+        \node[font=\scriptsize\bfseries,text=muted,anchor=east] at (-12,0) {RAG right};
+        \node[font=\scriptsize\bfseries,text=muted,anchor=east] at (-12,-13.5) {RAG wrong};
+      \end{tikzpicture}
+    \column{.52\textwidth}
+      \eyebrow{Combine both \,\textperiodcentered\, Llama 3.1-70B}\\[2mm]
+      {\small\renewcommand{\arraystretch}{1.4}\begin{tabular}{@{}l c c@{}}
+        & \eyebrow{Overall} & \eyebrow{No answer}\\\midrule
+        RAG & 65.8 & 91.4\\
+        GraphRAG & 71.2 & 88.7\\
+        Both combined & \textbf{77.6} & \leavevmode{\color{warm}\bfseries 59.5}\\
+      \end{tabular}}\\[3mm]
+      {\footnotesize\soft{Routing each question to one method gained 1.1 points and runs one pipeline per question.}}
+  \end{columns}
+  \takeaway{Combining evidence raised accuracy and cut correct abstentions from 91\% to 59\%. \textbf{Score no-answer questions separately.}}
+\end{frame}
+
+\begin{frame}{What the graph costs}
+  \papertag{Han et al., arXiv:2502.11371}
+  \begin{columns}[T,onlytextwidth]
+    \column{.59\textwidth}
+      \eyebrow{MultiHop-RAG benchmark}\\[2mm]
+      {\small\renewcommand{\arraystretch}{1.45}\setlength{\tabcolsep}{4pt}\begin{tabular}{@{}l r r r@{}}
+        & \eyebrow{RAG} & \eyebrow{KG} & \eyebrow{Community}\\\midrule
+        Build the index & 135 s & \leavevmode{\color{warm}7,702 s} & \leavevmode{\color{warm}5,560 s}\\
+        Retrieval & 1,724 s & \leavevmode{\color{warm}14,434 s} & 1,249 s\\
+        Storage & 127 MB & 117 MB & 165 MB\\
+        Tokens per question & 3,631 & -- & \leavevmode{\color{warm}9,770}\\
+      \end{tabular}}
+    \column{.37\textwidth}
+      {\small\textbf{Same budget, same score.}}\\
+      {\small Given GraphRAG's token budget, RAG scored \textbf{69.3\%} against GraphRAG's \textbf{69.0\%}.}\\[4mm]
+      {\small\textbf{The graph misses facts.}}\\
+      {\small Only \textbf{65.8\%} of HotpotQA answer entities reached the extracted knowledge graph.}
+  \end{columns}
+  \vspace{2mm}
+  \takeaway{Start with RAG. Add a graph when your test questions link facts across documents \textbf{and} the gain holds at a matched token budget.}
+\end{frame}
+
 \begin{frame}{What the evidence changed}
   \nbtag{Part 3 \S11}
   \begin{columns}[T,onlytextwidth]

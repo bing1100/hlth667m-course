@@ -27,8 +27,8 @@ Tutorial 1 teaches how to judge a result: know the data, split first, put every 
 | Tutorial 2 · Part 1 Word2Vec | 43–50 | 8 min | 25 min |
 | Tutorial 2 · Part 2 attention and masks | 51–75 | 25 min | 30 min |
 | Decoding (slides only) | 76–81 | 7 min | |
-| Tutorial 2 · Part 3 RAG and chat app | 82–99 | 20 min | 50 min |
-| Close and Lab 2 | 100–101 | 4 min | |
+| Tutorial 2 · Part 3 RAG, GraphRAG and chat app | 82–104 | 27 min | 50 min |
+| Close and Lab 2 | 105–106 | 4 min | |
 
 ---
 
@@ -518,41 +518,73 @@ Tutorial 1 teaches how to judge a result: know the data, split first, put every 
 
 **Notebook:** Tutorial 2 Part 3, section 9.
 
-### 93 · What the evidence changed
+### 93 · Beyond the notebook: GraphRAG builds the graph with an LLM
+
+**Say:** The graph on the last slide has seven nodes, and I drew them by hand. GraphRAG builds that kind of graph automatically, from the whole corpus. Compare the two rows. Ordinary RAG indexes passages: it embeds each chunk and later returns the chunks most similar to the question. GraphRAG adds a step in which a language model reads every chunk and writes down the entities it mentions and the relations between them. Those become a knowledge graph, and each edge keeps the chunk it came from, as ours did. The graph is then split into communities of closely linked entities, and the model writes a summary of each community. At question time there are two ways in. Local search finds the entities named in the question and follows their edges. Global search matches the question against the community summaries. All of those model calls happen before anyone asks anything, and the graph inherits every mistake the extracting model makes.
+
+**Point at:** the pink extraction stage, then the two search boxes.
+
+### 94 · GraphRAG is a family of designs
+
+**Say:** "GraphRAG" is the name of a family, and the paper on the next slides compares four members. KG-based systems extract triples, such as "urgent lab result, communicated by, designated clinician", and retrieve those triples, with or without the text they came from. Community-based systems are the Microsoft design from the last slide. Graph-guided text systems, such as HippoRAG 2, use the graph only to choose chunks, so the model still reads the original passages. Summary trees, such as RAPTOR, cluster chunks and summarise them level by level without naming any entities. Read the right-hand column, because it predicts the results we are about to see. Original text keeps the details a question asks about. Triples and summaries keep the connections and lose some of the details.
+
+**Ask:** Which of these four designs is closest to the graph we used in section 9? (Listen for graph-guided text: our graph led us to original chunks. The difference is that we built it by hand.)
+
+### 95 · RAG or GraphRAG? It depends on the question
+
+**Say:** Han and colleagues compared RAG and GraphRAG under one protocol, holding the chunk size, the embedding model, the number of retrieved items and the generator fixed. Blue is RAG and orange is GraphRAG, here the community design with local search. On single facts RAG is slightly ahead, and on multi-hop and comparison questions GraphRAG is slightly ahead. The two large gaps are lower down. On questions about the order of events in time, GraphRAG scores 50.6 against 30.7. On questions whose answer is absent from the corpus, where the right response is "insufficient information", RAG scores 96.0 and GraphRAG 80.1. The global-search version abstained correctly only 19 percent of the time. The right-hand column gives the reason. RAG passes the model original passages, so the details survive, including the detail that the answer is missing. GraphRAG passes entities, relations and summaries, so the links between documents survive.
+
+One aside about evaluation. Earlier reports that GraphRAG writes better summaries relied on a language model as the judge. This paper found that swapping the order in which two summaries were shown could reverse the judge's verdict, so an LLM judge needs the same scrutiny as any other measurement.
+
+**Point at:** the "Order in time" and "Answer absent" rows.
+
+### 96 · They get different questions right
+
+**Say:** Averages hide which questions each method gets right. On the left, every MultiHop-RAG question falls into one of four cells. Both methods answer 55 percent correctly and both fail on 19 percent. The coloured cells matter most: 11.6 percent are answered only by RAG and 13.6 percent only by GraphRAG. That invites combining them, and the paper tried two ways. Routing uses a model to classify each question as a fact question or a reasoning question and sends it to one method; that gained 1.1 points. Combining runs both and gives the generator both sets of evidence, and overall accuracy rose from 71.2 to 77.6. Now read the last column. With combined evidence, correct abstentions on no-answer questions fell from 91.4 to 59.5. More retrieved text gave the model more material to build an answer from when the corpus had none. This is the parking-fee question at benchmark scale, and it is why your Lab 2 test set needs unanswerable questions scored on their own line.
+
+**Point at:** the two coloured cells, then 59.5.
+
+### 97 · What the graph costs
+
+**Say:** GraphRAG costs more to build. On this benchmark the RAG index took 135 seconds to build and the two graph indexes took 7,702 and 5,560 seconds, because a model has to read every chunk. Retrieval time depends on the design. The knowledge-graph version was slowest, because it expands entities with a model and walks several hops, and the community version was fastest, because it matches summaries directly. Storage is similar for all three. The row to watch is tokens per question: GraphRAG sent the generator 9,770 tokens against RAG's 3,631, and from the tokenization notebook you know what that does to cost. When the authors gave RAG the same token budget, the overall scores matched, 69.3 against 69.0, and GraphRAG kept a clear lead only on time-ordering questions. The graph can also miss facts: only 65.8 percent of the HotpotQA answer entities made it into the extracted knowledge graph, and a fact missing from the graph cannot be retrieved through it. So start with RAG. Add a graph when your own test questions need facts linked across documents, and check that the gain survives a matched token budget.
+
+**Ask:** Which questions about Northstar's policies would need two documents to answer?
+
+### 98 · What the evidence changed
 
 **Say:** Now the payoff, from a real recorded run of a commercial model. The question is how long a registration code remains valid. Without context the model says codes "might remain valid for anywhere from a few hours to several days". That is fluent, reasonable and useless. With retrieved context it says 48 hours and cites `access_guide::000`. The answer became specific and traceable. Look at the token counts too: 169 against 312. Grounding roughly doubled the cost, which connects back to the tokenization notebook.
 
 **Notebook:** Tutorial 2 Part 3, section 11. The notebook replays this recorded run by default, so it needs no key and costs nothing.
 
-### 94 · Evaluate in two gates
+### 99 · Evaluate in two gates
 
 **Say:** Evaluate a RAG system in two stages. The retrieval gate asks whether the retrieved set contained every chunk the answer needs. When it fails, fix the chunking, the value of k, or the query. The generation gate asks whether the answer cites only retrieved chunks and abstains when evidence is missing. When it fails, fix the prompt or check the model. The takeaway gives the test case: the correct chunk was retrieved and the answer contains an invented fee. Retrieval passed, so that is a generation failure. Lab 2 asks you to report these two gates separately.
 
 **Notebook:** Tutorial 2 Part 3, section 12.
 
-### 95 · A citation is a pointer for a human check
+### 100 · A citation is a pointer for a human check
 
 **Say:** Here is the exercise I most want you to remember. Five hand-written answers, all with citations. The first is correct. The second adds an invented fifteen-dollar fee and cites a real chunk. The third cites the wrong chunk. The fourth invents a policy about patients aged fourteen and older. The fifth cites a chunk ID that does not exist. Now read the right-hand column. The automated checker flags one of the four faulty answers, the fabricated ID. The checker verifies that the citation label exists. Verifying the claim takes a person who reads the cited passage.
 
 **Notebook:** Tutorial 2 Part 3, section 13. Try the audit yourself before you open the answer key.
 
-### 96 · The partial-evidence trap
+### 101 · The partial-evidence trap
 
 **Say:** One of those cases deserves its own slide. The question: can a parent see a teenager's results? Retrieval does its job and returns a relevant passage saying proxy access requires documented consent. The corpus says nothing about minors, ages or sensitive results. The generated answer then continues, "For patients aged 14 and older, withhold…", which is confident, plausible and invented. Retrieval succeeded, and generation overreached into the gap. The safe answer covers the supported part and then names the gap. Put that instruction in your prompt, and put a question like this one in your test set.
 
-### 97 · From notebook to chat interface
+### 102 · From notebook to chat interface
 
 **Say:** So far everything ran in notebook cells, and the people who will use your system will see a chat box. Streamlit turns a Python script into a web page. Three ideas are enough to read the code. The script reruns from top to bottom on every interaction. So anything that must survive, such as the conversation, lives in session state, and anything expensive, such as the corpus and the embeddings, is cached. On the right is the flow: the notebook writes the app file, Streamlit serves it on localhost, and the app calls the same retrieve function you studied earlier and calls generate only when a key is present. The interface adds no intelligence. It gives someone else a way to use what you built.
 
 **Notebook:** Tutorial 2 Part 3, section 14. Run the launch cell, open the printed address, and run the stop cell before you close the notebook.
 
-### 98 · The chat app, asked a patient's question
+### 103 · The chat app, asked a patient's question
 
 **Say:** Here is the app answering the bloodwork question in retrieval-only mode, with no key and no cost. It reports that no model was called, names the best-matching passage, and shows that the terminology added "laboratory result". The evidence panel lists the same ranking we saw in the terminology section, because it is the same code. Now look at rank 4: a score of 0.000, and it was shown anyway. That is "top-k always returns k" inside a friendly interface. A chat box looks finished and authoritative, so the limits have to be put on the screen. The notebook ends with that exercise: make the app decline when the top score is too low.
 
 **Ask:** What would you want this screen to tell a patient that it currently leaves out?
 
-### 99 · Limits to carry forward
+### 104 · Limits to carry forward
 
 **Say:** Six limits to take with you. Nearest neighbours still need a relevance check. Retrieved sources can be incomplete or wrong, and the model will repeat them faithfully. A cited answer still needs its claim checked. Our terminology and graph are tiny, fictional and hand-built, and they inherit their author's mistakes. The replayed responses are one run on one date. And live services raise cost, privacy and retention questions that must be settled before any real document goes near them. In one line: treat retrieved text as data to check.
 
@@ -560,10 +592,10 @@ Tutorial 1 teaches how to judge a result: know the data, split first, put every 
 
 # Close
 
-### 100 · Your turn: Lab 2
+### 105 · Your turn: Lab 2
 
 **Say:** Lab 2 asks you to do all of this on a new corpus. Five steps. Know the corpus: what it can answer fully, in part, and not at all. Design retrieval, and compare at least two configurations on the same questions. Build the chatbot so that it cites, abstains and shows its evidence. Evaluate it with the two gates and a citation audit done by hand. Then plan the path to production by brainstorming with an AI tool and applying your own judgement to what it suggests. You also submit an AI use record and a one-page reflection, as in Lab 1. My strongest advice is on the slide: write your test questions before you tune the system, and include questions the corpus cannot answer. That is "split first, evaluate once", carried over from Tutorial 1.
 
-### 101 · Seven things to keep
+### 106 · Seven things to keep
 
 **Say:** Seven things to keep. From Tutorial 1: compare with a baseline before anything else, put every step that learns inside the pipeline, and treat a surprisingly good result as a reason to look for leakage. From Tutorial 2: clinical text is expensive in tokens, the mask decides what a model may read, temperature zero buys repeatability, and a person still has to check each cited claim. The first three tell you how to judge a number. The last four tell you how a language model produced its sentence, and why that sentence deserves the same scrutiny. Thank you. Open Tutorial 2 Part 3 and start with your corpus.

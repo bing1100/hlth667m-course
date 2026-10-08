@@ -7,7 +7,7 @@ One Beamer deck covering both Lab 2 tutorials in
 - **Tutorial 2 — From tokens to grounded answers** (notebooks Part 0 to 3, plus a
   slides-only section on decoding)
 
-`lab2-slides.pdf` is the built deck: 101 pages, 16:9.
+`lab2-slides.pdf` is the built deck: 106 pages, 16:9.
 
 ## How the deck follows the notebooks
 
@@ -24,6 +24,12 @@ Slides may go further than the notebooks. Those slides carry no tag: the
 `√d_k` demonstration, positional encoding ("Beyond the notebook"), and the
 whole decoding section (temperature, top-k, top-p), whose numbers come from
 the archived decoding notebook in `part-2-rag/archive/`.
+
+Five GraphRAG slides follow the knowledge-graph slide in Part 3. The first two
+explain GraphRAG. The last three compare it with RAG using numbers from Han et
+al., *RAG vs. GraphRAG: A Systematic Evaluation and Key Insights*
+([arXiv:2502.11371](https://arxiv.org/abs/2502.11371), v3, March 2026), and
+carry a `\papertag`.
 
 ## Build
 
@@ -62,6 +68,7 @@ Needs TeX Live with `beamer`, `pgfplots`, `tcolorbox`, `fontawesome5`,
 | `\notebookslide{tag}{title}{question}` | Light divider opening a notebook, with its guiding question. |
 | `\nbexample[height]{Part 2 \S5}{title}{figure}{takeaway}` | A whole "From the notebook" slide built around an exported figure. Lower `height` if a two-line takeaway reaches the footer. |
 | `\nbtag{Part 3 \S7}` | Footer tag for a slide that reproduces a notebook output natively. Put it first inside the frame. |
+| `\papertag{Han et al., arXiv:2502.11371}` | Footer tag for a slide whose numbers come from a published paper. Put it first inside the frame. |
 | `\takeaway{...}` | The one-sentence conclusion under a slide's content. Keep it to two lines. |
 | `\keynumber[colour]{value}{caption}` | A large statistic with a caption. |
 | `\tok[colour]{text}` | A token chip. Set `\toksize` inside a frame to resize. |
@@ -82,7 +89,8 @@ The palette is Okabe–Ito (colour-blind safe), matching the notebook figures.
   `export_notebook_figures.py`, run `make figures`, then add an `\nbexample`
   after the explanation slide it illustrates.
 - Every number on a slide comes from the executed notebooks (see each
-  tutorial's `VALIDATION.md`). Three visuals are schematic and say so on the
+  tutorial's `VALIDATION.md`), except on `\papertag` slides, whose numbers
+  come from the cited paper. Three visuals are schematic and say so on the
   slide: the BPE merge order, the t-SNE scatter, and the two density curves on
   the prediction-compression slide, which are drawn from the measured standard
   deviations.

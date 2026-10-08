@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.5.13)  21 SEP 2026 18:45
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.5.13)  8 OCT 2026 12:56
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -2384,38 +2384,24 @@ Package pdftex.def Info: figures/rag-lexical-scores.png  used on input line 789
 
 ] [92
 
-]
-Overfull \hbox (0.97266pt too wide) in paragraph at lines 885--885
-\T1/FiraSans-OsF/regular/n/10 (-20) ``...registration codes might re-main valid
-
- []
-
-[93
-
-] [94
+] [93
 
 ]
-Overfull \hbox (1.23776pt too wide) in paragraph at lines 915--915
- [] 
+Overfull \vbox (2.27689pt too high) detected at line 902
  []
 
+[94
 
-Overfull \vbox (1.47157pt too high) detected at line 915
- []
-
-[95
+] [95
 
 ] [96
 
-]
-Overfull \hbox (4.60889pt too wide) in paragraph at lines 952--952
- [][] 
- []
-
-[97
+] [97
 
 ]
-Overfull \vbox (1.71275pt too high) detected at line 975
+Overfull \hbox (0.97266pt too wide) in paragraph at lines 1002--1002
+\T1/FiraSans-OsF/regular/n/10 (-20) ``...registration codes might re-main valid
+
  []
 
 [98
@@ -2423,13 +2409,41 @@ Overfull \vbox (1.71275pt too high) detected at line 975
 ] [99
 
 ]
-Overfull \hbox (5.55836pt too wide) in paragraph at lines 1017--1017
- [][] 
+Overfull \hbox (1.23776pt too wide) in paragraph at lines 1032--1032
+ [] 
+ []
+
+
+Overfull \vbox (1.47157pt too high) detected at line 1032
  []
 
 [100
 
 ] [101
+
+]
+Overfull \hbox (4.60889pt too wide) in paragraph at lines 1069--1069
+ [][] 
+ []
+
+[102
+
+]
+Overfull \vbox (1.71275pt too high) detected at line 1092
+ []
+
+[103
+
+] [104
+
+]
+Overfull \hbox (5.55836pt too wide) in paragraph at lines 1134--1134
+ [][] 
+ []
+
+[105
+
+] [106
 
 ])
 \tf@nav=\write6
@@ -2450,11 +2464,11 @@ Package rerunfilecheck Info: File `lab2-slides.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 53099 strings out of 474222
- 1237408 string characters out of 5748733
+ 53208 strings out of 474222
+ 1239145 string characters out of 5748733
  1950975 words of memory out of 5000000
- 73667 multiletter control sequences out of 15000+600000
- 1227575 words of font info for 618 fonts, out of 8000000 for 9000
+ 73759 multiletter control sequences out of 15000+600000
+ 1228685 words of font info for 624 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  128i,21n,123p,1008b,2963s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/fira/FiraMono-Bold.pfb></us
@@ -2468,10 +2482,10 @@ t/fonts/type1/public/newtx/txsym.pfb></usr/share/texlive/texmf-dist/fonts/type1
 /public/newtx/txsys.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/newtx
 sf/zsfmi-reg.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/newtxsf/zsfm
 ia-reg.pfb>
-Output written on build/lab2-slides.pdf (101 pages, 1178706 bytes).
+Output written on build/lab2-slides.pdf (106 pages, 1191084 bytes).
 PDF statistics:
- 741 PDF objects out of 1000 (max. 8388607)
- 543 compressed objects within 6 object streams
- 203 named destinations out of 1000 (max. 500000)
+ 769 PDF objects out of 1000 (max. 8388607)
+ 566 compressed objects within 6 object streams
+ 213 named destinations out of 1000 (max. 500000)
  193293 words of extra memory for PDF output out of 221844 (max. 10000000)
 
